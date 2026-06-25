@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NF PHOTOS GIFTS – Wedding Album OMS</title>
+  <link rel="stylesheet" href="styles.css">
+  
+  <!-- Firebase Compat CDNs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  
+  <!-- QRious JS for QR Code generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+  
+  <!-- html2canvas for converting invoice to PNG image -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@0.344.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+
+  <!-- Demo Mode Banner -->
+  <div id="demoBanner" class="demo-banner" style="display: none;">
+    <i data-lucide="info" style="width: 16px; height: 16px;"></i>
+    <span>Running in <strong>DEMO Mode</strong> with mock data. Real-time Firestore is offline.</span>
+    <button onclick="app.openFirebaseConfigModal()">Configure Firebase</button>
+  </div>
+
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="brand">
+        <div class="brand-logo">NF</div>
+        <div class="brand-details">
+          <h1>NF Photos Gifts</h1>
+          <p>Order Management & Billing</p>
+        </div>
+      </div>
+      
+      <!-- Desktop Navigation Tabs -->
+      <nav class="nav-tabs">
+        <div class="nav-tab active" onclick="app.switchView('dashboard')" id="tab-dashboard">
+          <i data-lucide="layout-dashboard" style="width: 16px; height: 16px; display: inline; vertical-align: middle; margin-right: 4px;"></i>Dashboard
+        </div>
+        <div class="nav-tab" onclick="app.switchView('photographers')" id="tab-photographers">
+          <i data-lucide="users" style="width: 16px; height: 16px; display: inline; vertical-align: middle; margin-right: 4px;"></i>Photographers
+        </div>
+        <div class="nav-tab" onclick="app.switchView('reports')" id="tab-reports">
+          <i data-lucide="bar-chart-3" style="width: 16px; height: 16px; display: inline; vertical-align: middle; margin-right: 4px;"></i>Reports
+        </div>
+      </nav>
+
+      <div class="header-actions">
+        <button class="btn btn-secondary btn-icon" id="headerSearchBtn" onclick="app.toggleHeaderSearch()" title="Search Projects">
+          <i data-lucide="search"></i>
+        </button>
+        <button class="btn btn-secondary btn-icon" id="themeToggleBtn" onclick="app.toggleTheme()" title="Toggle Theme">
+          <i data-lucide="moon"></i>
+        </button>
+        <button class="btn btn-secondary btn-icon" onclick="app.openSettingsModal()" title="Settings">
+          <i data-lucide="settings"></i>
+        </button>
+        <button class="btn btn-primary" onclick="app.openAddOrderModal()">
+          <i data-lucide="plus"></i> <span>New Project</span>
+        </button>
+      </div>
+
+      <!-- Header Search Overlay -->
+      <div id="headerSearchOverlay" class="header-search-overlay" style="display: none;">
+        <i data-lucide="search" style="color: var(--text-secondary); width: 18px; height: 18px;"></i>
+        <input type="text" id="headerSearchInput" placeholder="Search by client name, photographer, or invoice number..." style="flex: 1; border: none; background: transparent; outline: none; font-size: 0.95rem; color: var(--text-primary);" oninput="app.handleHeaderSearch(this.value)">
+        <button class="btn btn-secondary btn-icon" onclick="app.closeHeaderSearch()" style="border: none; background: transparent; padding: 4px; width: 28px; height: 28px; min-width: 28px;">
+          <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- VIEWS -->
+
+    <!-- 1. Dashboard View -->
+    <div id="view-dashboard" class="app-view">
+      <!-- Main KPIs -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-info">
+            <h4>Total Projects</h4>
+            <div class="kpi-value" id="kpi-total-projects">0</div>
+          </div>
+          <div class="kpi-icon"><i data-lucide="folder"></i></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-info">
+            <h4>Active Albums</h4>
+            <div class="kpi-value" id="kpi-active-albums">0</div>
+          </div>
+          <div class="kpi-icon"><i data-lucide="book-open"></i></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-info">
+            <h4>Total Business</h4>
+            <div class="kpi-value" id="kpi-total-business">₹0</div>
+          </div>
+          <div class="kpi-icon"><i data-lucide="indian-rupee"></i></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-info">
+            <h4>Total Received</h4>
+            <div class="kpi-value" id="kpi-total-received">₹0</div>
+          </div>
+          <div class="kpi-icon"><i data-lucide="wallet"></i></div>
+        </div>
+      </div>
+      
+      <!-- Net Outstanding KPI -->
+      <div class="kpi-card-full" id="kpi-outstanding-card">
+        <div class="kpi-info">
+          <h4>Net Outstanding Balance</h4>
+          <div class="kpi-value" id="kpi-net-outstanding" style="color: var(--pending-color); font-size: 2.2rem; margin-top: 4px;">₹0</div>
+          <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">Total pending amount to be collected across all projects</p>
+        </div>
+        <div class="kpi-icon" style="background-color: var(--pending-bg); color: var(--pending-color); width: 56px; height: 56px;">
+          <i data-lucide="alert-circle" style="width: 28px; height: 28px;"></i>
+        </div>
+      </div>
+
+      <!-- Hidden KPI elements to prevent JS errors -->
+      <div style="display: none;">
+        <span id="kpi-week-payments"></span>
+        <span id="kpi-completed-projects"></span>
+        <span id="kpi-total-photographers"></span>
+      </div>
+
+      <!-- Weekly Reminders Panel -->
+      <div class="kpi-card-full" id="weeklyRemindersPanel" style="display: none; flex-direction: column; align-items: stretch; border-left: 5px solid var(--warning-color); padding: 16px; margin-bottom: 24px; box-shadow: 0 4px 12px var(--shadow-color);">
+        <h3 style="font-size: 1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="bell" style="color: var(--warning-color); width: 18px; height: 18px;"></i>
+          <span>Payment Reminders</span>
+        </h3>
+        <div id="weeklyRemindersList" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; padding-right: 4px;">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Search & Filters -->
+      <div class="search-filter-container" style="margin-top: 24px;">
+        <div class="search-box" style="display: none;">
+          <input type="text" id="dashboardSearch" placeholder="Search..." oninput="app.filterOrders()">
+        </div>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
+            <select class="form-control" id="filterPaymentStatus" onchange="app.filterOrders()">
+              <option value="all">All Payment Statuses</option>
+              <option value="pending">Pending Payments</option>
+              <option value="fully-paid">Fully Paid</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
+            <select class="form-control" id="filterStudioOrClient" onchange="app.filterOrders()">
+              <option value="all">All Studios & Clients</option>
+            </select>
+          </div>
+        </div>
+        
+        <!-- Status chips -->
+        <div class="filter-chips" id="statusChipsContainer">
+          <div class="chip active" onclick="app.setStatusFilter('all', this)">All Statuses</div>
+          <div class="chip" onclick="app.setStatusFilter('Order Received', this)">Order Received</div>
+          <div class="chip" onclick="app.setStatusFilter('Designing', this)">Designing</div>
+          <div class="chip" onclick="app.setStatusFilter('PDF Sent', this)">PDF Sent</div>
+          <div class="chip" onclick="app.setStatusFilter('Changes Requested', this)">Changes Requested</div>
+          <div class="chip" onclick="app.setStatusFilter('Approved', this)">Approved</div>
+          <div class="chip" onclick="app.setStatusFilter('Google Drive Link Sent', this)">Drive Sent</div>
+          <div class="chip" onclick="app.setStatusFilter('Delivered', this)">Delivered</div>
+          <div class="chip" onclick="app.setStatusFilter('Hold', this)">Hold</div>
+          <div class="chip" onclick="app.setStatusFilter('Cancelled', this)">Cancelled</div>
+          <div class="chip" onclick="app.setStatusFilter('Archived', this)">Archived</div>
+        </div>
+      </div>
+
+      <!-- Orders List Container -->
+      <div class="orders-list" id="ordersList">
+        <!-- Rendered dynamically -->
+        <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+          <i data-lucide="loader" style="animation: spin 1.5s linear infinite; margin-bottom: 8px;"></i>
+          <p>Loading projects...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Order Details / Editor View -->
+    <div id="view-order-details" class="app-view" style="display: none;">
+      <!-- Back Header -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <button class="btn btn-secondary" onclick="app.switchView('dashboard')">
+          <i data-lucide="arrow-left"></i> Back to Dashboard
+        </button>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-danger btn-icon" id="deleteOrderBtn" onclick="app.deleteCurrentOrder()" title="Delete Project">
+            <i data-lucide="trash-2"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="details-grid">
+        <!-- Main Form & Album items -->
+        <div class="details-main">
+          
+          <!-- Metadata Card -->
+          <div class="order-detail-header-card">
+            <div class="editor-title-row">
+              <div>
+                <span class="order-id" id="detail-invoice-number">NF-XXX</span>
+                <h2 class="editor-client-name" id="detail-client-name-title">Client Name</h2>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px; display: flex; gap: 8px; align-items: center;">
+                  <i data-lucide="tag" style="width: 14px; height: 14px;"></i>
+                  <span id="detail-event-badge" class="badge badge-info">Wedding</span>
+                  <span style="margin: 0 4px;">•</span>
+                  <i data-lucide="user" style="width: 14px; height: 14px;"></i>
+                  <span>Photographer: <strong id="detail-photographer-name" style="color: var(--text-primary);">Studio</strong></span>
+                </div>
+              </div>
+              <div id="detail-payment-indicator">
+                <!-- Smart payment indicator rendered dynamically -->
+              </div>
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label for="detail-status">Update Status</label>
+                <select class="form-control" id="detail-status" onchange="app.updateOrderStatus(this.value)">
+                  <option value="Order Received">Order Received</option>
+                  <option value="Designing">Designing</option>
+                  <option value="PDF Sent">PDF Sent</option>
+                  <option value="Changes Requested">Changes Requested</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Google Drive Link Sent">G Drive Link Sent</option>
+                  <option value="Delivered">Delivered</option>
+                  <option value="Hold">Hold</option>
+                  <option value="Cancelled">Cancelled</option>
+                  <option value="Archived">Archived</option>
+                  <option value="Other">Other (Custom Editable)</option>
+                </select>
+                <!-- For Custom Editable Status -->
+                <input type="text" class="form-control" id="detail-custom-status" placeholder="Enter custom status..." style="display: none; margin-top: 8px;" onchange="app.updateOrderCustomStatus(this.value)">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                <label class="switch" style="transform: scale(0.85); margin-bottom: 0;">
+                  <input type="checkbox" id="detail-show-client-mobile" onchange="app.toggleClientMobile(this.checked)">
+                  <span class="slider"></span>
+                </label>
+                <span style="font-size: 0.85rem; font-weight: 500; color: var(--text-secondary);">Client Mobile Number</span>
+              </div>
+            </div>
+            
+            <div class="form-row" id="client-mobile-container" style="display: flex; gap: 8px; align-items: flex-end; margin-bottom: 12px;">
+              <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                <label>Client Mobile</label>
+                <input type="text" class="form-control" id="detail-client-mobile" placeholder="Mobile number" onchange="app.updateOrderMeta('clientMobile', this.value)">
+              </div>
+              <button class="btn btn-secondary btn-icon" id="client-whatsapp-btn" onclick="app.openClientWhatsAppChat()" title="Open Client WhatsApp Chat" style="height: 38px; width: 38px; padding: 0; color: #25D366; border-color: rgba(37, 211, 102, 0.3);">
+                <i data-lucide="message-square" style="width: 16px; height: 16px;"></i>
+              </button>
+            </div>
+
+            <div class="form-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 12px; margin-top: 8px;">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label>Booking Date</label>
+                <input type="date" class="form-control" id="detail-order-date" onchange="app.updateOrderMeta('orderDate', this.value)">
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label>Event Date</label>
+                <input type="date" class="form-control" id="detail-event-date" onchange="app.updateOrderMeta('eventDate', this.value)">
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label>Expected Delivery</label>
+                <input type="date" class="form-control" id="detail-delivery-date" onchange="app.updateOrderMeta('deliveryDate', this.value)">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label style="display: flex; justify-content: space-between; align-items: center;">
+                <span>Raw Photos Link (Google Drive)</span>
+                <span id="rawPhotosFeedback" style="font-size: 0.75rem; color: var(--success-color); display: none; text-transform: none; font-weight: normal;">✓ Saved</span>
+              </label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" class="form-control" id="detail-raw-link" placeholder="Paste Raw Photos link here..." onchange="app.updateRawPhotosLink(this.value)">
+                <button class="btn btn-secondary" onclick="app.openRawPhotosLink()" title="Open Raw Photos Drive">
+                  <i data-lucide="external-link"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label style="display: flex; justify-content: space-between; align-items: center;">
+                <span>Final Album Link (Google Drive)</span>
+                <span id="finalDesignFeedback" style="font-size: 0.75rem; color: var(--success-color); display: none; text-transform: none; font-weight: normal;">✓ Saved</span>
+              </label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" class="form-control" id="detail-final-link" placeholder="Paste Final Album link here..." onchange="app.updateFinalDesignLink(this.value)">
+                <button class="btn btn-secondary" onclick="app.openFinalDesignLink()" title="Open Final Album Drive">
+                  <i data-lucide="external-link"></i>
+                </button>
+                <button class="btn btn-secondary" onclick="app.sendWhatsAppDriveLink()" title="Share Drive Link via WhatsApp" style="color: #25D366; border-color: rgba(37, 211, 102, 0.3);">
+                  <i data-lucide="share-2"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>Notes / Special Requests</label>
+              <textarea class="form-control" id="detail-notes" placeholder="Add specific requirements..." onchange="app.updateOrderMeta('notes', this.value)"></textarea>
+            </div>
+          </div>
+          
+          <!-- Top Financial Cards -->
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+            <div class="kpi-card" style="padding: 16px;">
+              <div class="kpi-info">
+                <h4 style="font-size: 0.65rem;">Gross Bill</h4>
+                <div class="kpi-value" id="detail-gross-amount" style="font-size: 1.4rem;">₹0</div>
+              </div>
+            </div>
+            <div class="kpi-card" style="padding: 16px;">
+              <div class="kpi-info">
+                <h4 style="font-size: 0.65rem;">Received</h4>
+                <div class="kpi-value" id="detail-received-amount" style="font-size: 1.4rem; color: var(--success-color);">₹0</div>
+              </div>
+            </div>
+            <div class="kpi-card" style="padding: 16px;">
+              <div class="kpi-info">
+                <h4 style="font-size: 0.65rem;">Balance</h4>
+                <div class="kpi-value" id="detail-balance-amount" style="font-size: 1.4rem; color: var(--pending-color);">₹0</div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Album List Panel -->
+          <div class="order-detail-header-card">
+            <h3 style="font-size: 1.1rem; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Itemized Albums</span>
+              <button class="btn btn-secondary btn-icon" style="width: 32px; height: 32px; border-radius: 8px;" onclick="app.addNewAlbumItem()" title="Add Album">
+                <i data-lucide="plus" style="width: 16px; height: 16px;"></i>
+              </button>
+            </h3>
+            <div id="itemizedAlbumsList">
+              <!-- Dynamically populated album items -->
+            </div>
+            <button class="btn btn-secondary" style="width: 100%; margin-top: 8px;" onclick="app.addNewAlbumItem()">
+              <i data-lucide="plus"></i> Add Another Album
+            </button>
+          </div>
+          
+          <!-- Payment Ledger -->
+          <div class="order-detail-header-card">
+            <h3 style="font-size: 1.1rem; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Payment Transactions</span>
+              <button class="btn btn-secondary btn-icon" style="width: 32px; height: 32px; border-radius: 8px;" onclick="app.openRecordPaymentModal()" title="Record Payment">
+                <i data-lucide="plus" style="width: 16px; height: 16px;"></i>
+              </button>
+            </h3>
+            <div class="table-responsive">
+              <table class="table" style="font-size: 0.85rem;">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Notes</th>
+                    <th class="num">Amount</th>
+                  </tr>
+                </thead>
+                <tbody id="paymentLedgerRows">
+                  <!-- Rendered dynamically -->
+                  <tr>
+                    <td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 12px;">No payments recorded yet.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bill Slip Receipt Roll & UPI QR -->
+        <div class="bill-slip-container">
+          
+          <!-- QR Settings Controls -->
+          <div style="background-color: var(--bg-color); padding: 16px; border-radius: 12px; border: 1px solid var(--card-border);">
+            <div class="toggle-group" style="padding: 0; border: none; background: transparent; margin-bottom: 12px;">
+              <span style="font-size: 0.85rem; font-weight: 500;">Include UPI QR on Bill</span>
+              <label class="switch">
+                <input type="checkbox" id="toggleIncludeQR" onchange="app.renderBillSlip()" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="billRequestAmount" style="font-size: 0.7rem;">Request Amount (₹)</label>
+              <input type="number" class="form-control" id="billRequestAmount" placeholder="Amount to collect..." oninput="app.updateRequestAmount(this.value)">
+              <p style="font-size: 0.65rem; color: var(--text-secondary); margin-top: 4px;">Edit for partial payments. UPI & QR updates instantly.</p>
+            </div>
+          </div>
+
+          <!-- The Physical Receipt Slip Redesigned to Match Screenshot -->
+          <div class="bill-slip" id="printableBillSlip">
+            
+            <!-- Golden Ribbon Seal Badge -->
+            <div class="invoice-seal-badge" id="bill-seal-badge">
+              <div class="seal-circle">
+                <div class="seal-text" id="bill-type-badge">INVOICE</div>
+              </div>
+              <div class="seal-ribbon ribbon-left"></div>
+              <div class="seal-ribbon ribbon-right"></div>
+            </div>
+
+            <!-- 1. Centered Brand Header -->
+            <div class="invoice-brand-info-center">
+              <div class="monogram-logo">NF</div>
+              <h3 class="invoice-brand-name" id="bill-studio-name-top" style="font-size: 1.3rem; margin-top: 4px; color: #1A1A1A;">NF PHOTOS GIFTS</h3>
+              <p class="invoice-brand-sub" id="bill-studio-sub-top" style="font-size: 0.8rem; color: #7A6F65; font-weight: 600;">Wedding Album Specialists</p>
+            </div>
+            
+            <div class="invoice-divider"></div>
+            
+            <!-- 2. Invoice Meta (Bill No, Status & Date) -->
+            <div class="invoice-meta-row" id="billMetaRow" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+              <div style="flex: 1; text-align: left;">
+                <span class="invoice-meta-label">BILL NO.</span>
+                <div class="invoice-meta-val-large" id="bill-invoice-no">NF-XXX</div>
+              </div>
+              <div style="flex: 1; text-align: center;">
+                <span class="invoice-meta-label">STATUS</span>
+                <div class="invoice-meta-val" id="bill-order-status" style="font-weight: 700; font-size: 0.8rem; text-transform: uppercase;">Order Received</div>
+                <span class="bill-badge" id="bill-payment-status" style="margin-top: 4px; display: inline-block; font-size: 0.6rem; padding: 2px 6px;">Unpaid</span>
+              </div>
+              <div style="flex: 1; text-align: right;">
+                <span class="invoice-meta-label">DATE</span>
+                <div class="invoice-meta-val" id="bill-invoice-date" style="font-weight: 600;">18 Jun 2026</div>
+              </div>
+            </div>
+
+            <!-- New Meta Row for Combined Invoice (Studio, Date, Active Projects) -->
+            <div class="invoice-meta-row-combined" id="billMetaRowCombined" style="display: none; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+              <div>
+                <span class="invoice-meta-label">STUDIO</span>
+                <div class="invoice-meta-val-large" id="bill-combined-studio" style="color: var(--accent-gold-dark);">rp</div>
+                <div class="invoice-meta-subval" id="bill-combined-phone" style="font-size: 0.8rem; color: #7A6F65; font-weight: 600; margin-top: 2px;">7725889331</div>
+              </div>
+              <div style="text-align: right;">
+                <span class="invoice-meta-label">INVOICE DATE</span>
+                <div class="invoice-meta-val" id="bill-combined-date" style="font-weight: 600;">23 Jun 2026</div>
+                <span class="invoice-meta-label" style="margin-top: 8px; display: block;">ACTIVE PROJECTS</span>
+                <div class="invoice-meta-val-large" id="bill-combined-projects-count" style="color: var(--accent-gold-dark); font-size: 2rem; line-height: 1; margin-top: 2px;">2</div>
+              </div>
+            </div>
+            
+            <div class="invoice-divider"></div>
+            
+            <!-- 3. Client Details -->
+            <div class="invoice-section-title" id="billDetailsTitle">CLIENT DETAILS</div>
+            <div class="invoice-details-table" id="billDetailsTable">
+              <div class="invoice-details-row">
+                <span class="details-label">Studio</span>
+                <strong class="details-val" id="bill-photographer">nf</strong>
+              </div>
+              <div class="invoice-details-row">
+                <span class="details-label">Client Name</span>
+                <strong class="details-val" id="bill-client">priya mohan</strong>
+              </div>
+              <div class="invoice-details-row">
+                <span class="details-label">Event</span>
+                <strong class="details-val" id="bill-event">Wedding</strong>
+              </div>
+            </div>
+
+            <!-- Combined Projects Table Container -->
+            <div id="billCombinedTableContainer" style="display: none; margin-bottom: 12px; width: 100%;">
+              <!-- Rendered dynamically -->
+            </div>
+            
+            <div class="invoice-divider" id="billDividerAfterDetails"></div>
+            
+            <!-- 4. Album Details -->
+            <div class="invoice-section-title" id="billAlbumsTitle">ALBUM DETAILS</div>
+            <div id="billAlbumsContainer">
+              <!-- Itemized album detail cards populated dynamically -->
+            </div>
+            
+            <div class="invoice-divider" id="billDividerAfterAlbums"></div>
+            
+            <!-- 5. Payment Summary -->
+            <div class="invoice-section-title" id="billSummaryTitle">PAYMENT SUMMARY</div>
+            <div class="payment-summary-card">
+              <div class="summary-row">
+                <span id="billGrossLabel">Total Bill</span>
+                <strong id="bill-gross-total">₹0</strong>
+              </div>
+              <div class="summary-row">
+                <span id="billPaidLabel">Total Paid</span>
+                <strong id="bill-received" style="color: var(--success-color);">₹0</strong>
+              </div>
+              <div class="summary-row-large">
+                <span id="billBalanceLabel">Total Balance</span>
+                <strong id="bill-balance-total" class="net-pending-balance-text">₹0</strong>
+              </div>
+            </div>
+            
+            <!-- 6. QR Code Section -->
+            <div id="billQrCodeSection" class="invoice-qr-card">
+              <div class="qr-title" id="billQrTitle">SCAN TO PAY VIA PHONEPE / GPAY / PAYTM</div>
+              <div class="invoice-qr-container">
+                <canvas id="upiQrCanvas"></canvas>
+              </div>
+              <div class="qr-merchant-id" id="billQrMerchantId">photosgiftsbynf@sbi</div>
+              <div class="qr-amount-text" id="billQrAmountRow">Amount: <span id="billQrAmountText">₹0</span></div>
+              <div class="qr-subtext" id="billQrSubtext" style="display: none; font-size: 0.65rem; color: var(--accent-gold-dark); margin-top: 4px; font-weight: 600; text-align: center;">Single payment for all active projects</div>
+            </div>
+            
+            <!-- 7. Footer -->
+            <div class="invoice-footer-section">
+              <p class="footer-thankyou">Thank you for choosing NF PHOTOS GIFTS!</p>
+              <p class="footer-subinfo">UPI: <span id="footer-upi-id">photosgiftsbynf@sbi</span> | Quality You Can Trust</p>
+              <p class="footer-combined-info" id="billFooterCombinedInfo" style="display: none; font-size: 0.65rem; color: #7A6F65; margin-top: 6px; font-style: italic; text-align: center;">This is a combined statement for all active projects under rp</p>
+            </div>
+            
+          </div>
+          
+          <!-- Action Buttons -->
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <button class="btn btn-secondary" onclick="app.sendWhatsAppInvoice()" style="width: 100%; background-color: #25D366; color: white; border: none;">
+              <i data-lucide="message-square"></i> Send Invoice via WhatsApp
+            </button>
+            <button class="btn btn-secondary" onclick="app.openWhatsappModal(app.activeOrderId)" style="width: 100%; border-color: #25D366; color: #128C7E;">
+              <i data-lucide="bell"></i> Send Payment Reminder
+            </button>
+            <button class="btn btn-secondary" onclick="app.sendWhatsAppDriveLink()" style="width: 100%;" id="btnShareDriveLink">
+              <i data-lucide="share-2"></i> Share Drive Link via WhatsApp
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Photographers View -->
+    <div id="view-photographers" class="app-view" style="display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <h2>Photographer Management</h2>
+        <button class="btn btn-primary" onclick="app.openAddPhotographerModal()">
+          <i data-lucide="user-plus"></i> Add Photographer
+        </button>
+      </div>
+      
+      <!-- Combined Settlement Bar (Contextual Selection) -->
+      <div id="combinedSettlementBar" style="display: none; background-color: var(--accent-gold-light); padding: 16px; border-radius: 12px; border: 1px solid var(--accent-gold); margin-bottom: 20px; align-items: center; justify-content: space-between;">
+        <div>
+          <i data-lucide="check-square" style="color: var(--accent-gold-dark); vertical-align: middle; margin-right: 8px;"></i>
+          <span>Selected <strong><span id="selectedOrdersCount">0</span></strong> orders for photographer settlement.</span>
+        </div>
+        <button class="btn btn-primary" onclick="app.generateCombinedInvoice()">
+          Generate Combined Invoice
+        </button>
+      </div>
+
+      <!-- Photographers List Table -->
+      <div class="photographer-table-card">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Photographer Name</th>
+              <th>Contact Details</th>
+              <th class="num">Total Orders</th>
+              <th class="num">Total Earnings</th>
+              <th class="num">Total Received</th>
+              <th class="num">Total Pending</th>
+              <th style="width: 100px; text-align: center;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="photographersTableBody">
+            <!-- Populated dynamically -->
+            <tr>
+              <td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 40px;">
+                <i data-lucide="loader" style="animation: spin 1.5s linear infinite; margin-bottom: 8px;"></i>
+                <p>Loading photographers...</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 4. Reports View -->
+    <div id="view-reports" class="app-view" style="display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <h2>Reports & Analytics</h2>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-secondary" onclick="app.exportReport('csv')">
+            <i data-lucide="download"></i> Export CSV
+          </button>
+        </div>
+      </div>
+
+      <div class="reports-layout">
+        <!-- Date Selector filters -->
+        <div class="search-filter-container">
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
+              <label for="reportYear">Year</label>
+              <select class="form-control" id="reportYear" onchange="app.renderReports()">
+                <option value="2026">2026</option>
+                <option value="2025">2025</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
+              <label for="reportMonth">Month</label>
+              <select class="form-control" id="reportMonth" onchange="app.renderReports()">
+                <option value="all">All Months</option>
+                <option value="1">January</option>
+                <option value="2">February</option>
+                <option value="3">March</option>
+                <option value="4">April</option>
+                <option value="5">May</option>
+                <option value="6">June</option>
+                <option value="7">July</option>
+                <option value="8">August</option>
+                <option value="9">September</option>
+                <option value="10">October</option>
+                <option value="11">November</option>
+                <option value="12">December</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="report-summary-cards">
+          <!-- Monthly Business Performance -->
+          <div class="report-card">
+            <div class="report-title-row">
+              <h3>Monthly Performance</h3>
+              <i data-lucide="calendar" style="color: var(--accent-gold);"></i>
+            </div>
+            <div class="report-list" id="reportMonthlyList">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- All-Time Performance Summary -->
+          <div class="report-card">
+            <div class="report-title-row">
+              <h3>All-Time Summary</h3>
+              <i data-lucide="globe" style="color: var(--success-color);"></i>
+            </div>
+            <div class="report-list" id="reportAllTimeList">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Studio-wise Summary -->
+          <div class="report-card">
+            <div class="report-title-row">
+              <h3>Studio-wise Summary</h3>
+              <i data-lucide="users" style="color: var(--accent-gold-dark);"></i>
+            </div>
+            <div class="report-list" id="reportStudioList" style="max-height: 250px; overflow-y: auto; padding-right: 4px;">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+          
+          <!-- Yearly Summary -->
+          <div class="report-card">
+            <div class="report-title-row">
+              <h3>Yearly Summary</h3>
+              <i data-lucide="pie-chart" style="color: var(--accent-gold-dark);"></i>
+            </div>
+            <div class="report-list">
+              <div class="report-list-item">
+                <span>Total Bookings:</span>
+                <strong id="report-yearly-bookings">0</strong>
+              </div>
+              <div class="report-list-item">
+                <span>Total Billing:</span>
+                <strong id="report-yearly-billing">₹0</strong>
+              </div>
+              <div class="report-list-item">
+                <span>Total Payments:</span>
+                <strong id="report-yearly-payments" style="color: var(--success-color);">₹0</strong>
+              </div>
+              <div class="report-list-item" style="border-top: 1px dashed var(--card-border); margin-top: 8px; padding-top: 12px;">
+                <span>Total Outstanding:</span>
+                <strong id="report-yearly-outstanding" style="color: var(--pending-color);">₹0</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Bottom Navigation Bar -->
+  <nav class="bottom-nav">
+    <div class="bottom-nav-item active" onclick="app.switchView('dashboard')" id="bottom-tab-dashboard">
+      <i data-lucide="layout-dashboard"></i>
+      <span>Dashboard</span>
+    </div>
+    <div class="bottom-nav-item" onclick="app.switchView('photographers')" id="bottom-tab-photographers">
+      <i data-lucide="users"></i>
+      <span>Photographers</span>
+    </div>
+    <div class="bottom-nav-item" onclick="app.switchView('reports')" id="bottom-tab-reports">
+      <i data-lucide="bar-chart-3"></i>
+      <span>Reports</span>
+    </div>
+  </nav>
+
+  <!-- MODALS -->
+
+  <!-- 1. Firebase Config Wizard -->
+  <div id="firebaseConfigModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Connect Firebase Firestore</h3>
+        <button class="btn btn-secondary btn-icon" style="width: 32px; height: 32px; border-radius: 8px;" onclick="app.closeFirebaseConfigModal()">
+          <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px;">
+          Paste your Firebase Web App SDK configuration snippet below to synchronize your OMS in real-time. If left blank, the app will continue to run in Offline/Demo Mode.
+        </p>
+        <div class="form-group">
+          <label for="firebaseConfigText">Firebase Config JSON Object</label>
+          <textarea class="form-control" id="firebaseConfigText" style="height: 160px; font-family: var(--font-mono); font-size: 0.75rem;" placeholder='{&#10;  "apiKey": "AIzaSy...",&#10;  "authDomain": "...",&#10;  "projectId": "...",&#10;  "storageBucket": "...",&#10;  "messagingSenderId": "...",&#10;  "appId": "..."&#10;}'></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="app.closeFirebaseConfigModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="app.saveFirebaseConfig()">Connect & Reload</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Add/Edit Photographer Modal -->
+  <div id="photographerModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="photographerModalTitle">Add New Photographer</h3>
+        <button class="btn btn-secondary btn-icon" style="width: 32px; height: 32px; border-radius: 8px;" onclick="app.closePhotographerModal()">
+          <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-photographer-id">
+        <div class="form-group">
+          <label for="photographer-name">Photographer Name *</label>
+          <input type="text" class="form-control" id="photographer-name" placeholder="E.g., Event Planner, Rajesh, Rohit">
+        </div>
+        <div class="form-group">
+          <label for="photographer-mobile">WhatsApp / Contact Number *</label>
+          <input type="text" class="form-control" id="photographer-mobile" placeholder="E.g., 9871498254">
+        </div>
+        <div class="form-group">
+          <label for="photographer-default-rate">Default Page Rate (₹) *</label>
+          <input type="number" class="form-control" id="photographer-default-rate" placeholder="E.g., 35" value="35">
+        </div>
+        <div class="form-group">
+          <label for="photographer-default-cover-charge">Default Cover Charge (₹) *</label>
+          <input type="number" class="form-control" id="photographer-default-cover-charge" placeholder="E.g., 35" value="35">
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label for="photographer-notes">Notes</label>
+          <textarea class="form-control" id="photographer-notes" placeholder="Special studio details or notes..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="app.closePhotographerModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="app.savePhotographer()">Save Photographer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Add Order Modal (New Project) -->
+  <div id="addOrderModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 600px;">
+      <div class="modal-header">
+        <h3>Create New Project</h3>
+        <button class="btn btn-secondary btn-icon" style="width: 32px; height: 32px; border-radius: 8px;" onclick="app.closeAddOrderModal()">
+          <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        
+        <!-- Gemini AI Paste helper -->
+        <div class="ai-helper-box">
+          <div class="ai-helper-header">
+            <i data-lucide="sparkles" style="width: 18px; height: 18px;"></i>
+            <span>Google AI Studio - Quick Auto-Fill</span>
+          </div>
+          <p style="font-size: 0.75rem; color: var(--text-secondary);">
+            Paste raw text (e.g. WhatsApp conversation or order note) and click Auto-Fill to extract details automatically.
+          </p>
+          <div style="display: flex; gap: 8px; margin-top: 4px;">
+            <input type="text" class="form-control" style="font-size: 0.8rem; padding: 8px 12px;" id="aiPasteText" placeholder="Paste order text details here...">
+            <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; height: 38px;" onclick="app.runAiAutoFill()">Auto-Fill</button>
+          </div>
+          <span id="aiLoader" style="font-size: 0.7rem; color: var(--accent-gold-dark); display: none;">
+            <i data-lucide="loader" style="width: 12px; height: 12px; animation: spin 1s linear infinite; vertical-align: middle;"></i> AI is reading text...
+          </span>
+        </div>
+
+        <div class="form-group">
+          <label for="order-photographer-select">Link Photographer *</label>
+          <select class="form-control" id="order-photographer-select">
+            <!-- Loaded dynamically -->
+          </select>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="order-client-name">Client Name *</label>
+            <input type="text" class="form-control" id="order-client-name" placeholder="E.g., Priya & Rohan">
+          </div>
+          <div class="form-group">
+            <label for="order-client-mobile">Client Mobile</label>
+            <input type="text" class="form-control" id="order-client-mobile" placeholder="E.g., 8930815909">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="order-event-type">Event Type</label>
+            <select class="form-control" id="order-event-type" onchange="app.checkCustomEvent(this.value)">
+              <option value="Wedding">Wedding</option>
+              <option value="Birthday">Birthday</option>
+              <option value="Anniversary">Anniversary</option>
+              <option value="Baby Shoot">Baby Shoot</option>
+              <option value="Corporate">Corporate</option>
+              <option value="Other">Other (Custom Text)</option>
+            </select>
+            <input type="text" class="form-control" id="order-custom-event-type" placeholder="Enter custom event..." style="display: none; margin-top: 8px;">
+          </div>
+          <div class="form-group">
+            <label for="order-event-date">Event Date</label>
+            <input type="date" class="form-control" id="order-event-date">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="order-date">Booking Date</label>
+            <input type="date" class="form-control" id="order-date">
+          </div>
+          <div class="form-group">
+            <label for="order-delivery-date">Expected Delivery</label>
+            <input type="date" class="form-control" id="order-delivery-date">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0;">
+          <label for="order-notes">Notes / Album specifications</label>
+          <textarea class="form-control" id="order-notes" placeholder="E.g., Bride Album (40 sheets), Groom Album (40 sheets)..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="app.closeAddOrderModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="app.createOrder()">Create Project & Open</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Quick Pay / Record Payment Modal -->
+  <div id="recordPaymentModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Record Client Payment</h3>
+        <button class="btn btn-secondary btn-icon" style="width: 32px; height: 32px; border-radius: 8px;" onclick="app.closeRecordPaymentModal()">
+          <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="payment-order-id">
+        <div class="form-group">
+          <label>Invoice Number</label>
+          <input type="text" class="form-control" id="payment-invoice-number" disabled>
+        </div>
+        <div class="form-group">
+          <label>Client Name</label>
+          <input type="text" class="form-control" id="payment-client-name" disabled>
+        </div>
+        <div class="form-group">
+          <label style="color: var(--pending-color);" id="payment-balance-label">Outstanding Balance: ₹0</label>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="payment-amount">Payment Amount (₹) *</label>
+            <input type="number" class="form-control" id="payment-amount" placeholder="Enter amount received...">
+          </div>
+          <div class="form-group">
+            <label for="payment-type">Payment Type</label>
+            <select class="form-control" id="payment-type" onchange="app.handlePaymentTypeChange(this.value)">
+              <option value="Partial">Partial Payment</option>
+              <option value="Advance">Advance Payment</option>
+              <option value="Full">Full Settlement</option>
+              <option value="Custom">Custom Payment</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="payment-date">Payment Date</label>
+          <input type="date" class="form-control" id="payment-date">
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label for="payment-notes">Payment Notes</label>
+          <input type="text" class="form-control" id="payment-notes" placeholder="E.g., Online, Cash, GPay, etc.">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="app.closeRecordPaymentModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="app.savePayment()">Record Payment</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Settings Modal -->
+  <div id="settingsModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Studio & Billing Settings</h3>
+        <button class="btn btn-secondary btn-icon" style="width: 32px; height: 32px; border-radius: 8px;" onclick="app.closeSettingsModal()">
+          <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        
+        <h4 style="font-size: 0.85rem; text-transform: uppercase; color: var(--accent-gold-dark); margin-bottom: 12px; border-bottom: 1px solid var(--card-border); padding-bottom: 4px;">Studio Profile</h4>
+        <div class="form-group">
+          <label for="settings-business-name">Business Name</label>
+          <input type="text" class="form-control" id="settings-business-name" placeholder="E.g., NF PHOTOS GIFTS">
+        </div>
+        
+        <h4 style="font-size: 0.85rem; text-transform: uppercase; color: var(--accent-gold-dark); margin-top: 20px; margin-bottom: 12px; border-bottom: 1px solid var(--card-border); padding-bottom: 4px;">UPI QR Code Configuration</h4>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="settings-upi-id">Merchant UPI ID</label>
+            <input type="text" class="form-control" id="settings-upi-id" placeholder="E.g., nfphotos@okaxis">
+          </div>
+          <div class="form-group">
+            <label for="settings-cover-charge">Default Cover Charge (₹)</label>
+            <input type="number" class="form-control" id="settings-cover-charge" placeholder="E.g., 40">
+          </div>
+        </div>
+
+        <h4 style="font-size: 0.85rem; text-transform: uppercase; color: var(--accent-gold-dark); margin-top: 20px; margin-bottom: 12px; border-bottom: 1px solid var(--card-border); padding-bottom: 4px;">Google AI Studio API</h4>
+        <div class="form-group">
+          <label for="settings-gemini-key">Gemini API Key</label>
+          <input type="password" class="form-control" id="settings-gemini-key" placeholder="Enter Gemini API key...">
+          <p style="font-size: 0.65rem; color: var(--text-secondary); margin-top: 4px;">Used for order details auto-fill extraction from raw chat text.</p>
+        </div>
+
+        <h4 style="font-size: 0.85rem; text-transform: uppercase; color: var(--accent-gold-dark); margin-top: 20px; margin-bottom: 12px; border-bottom: 1px solid var(--card-border); padding-bottom: 4px;">Developer Options</h4>
+        <button class="btn btn-danger" style="width: 100%;" onclick="app.resetDemoData()">
+          <i data-lucide="refresh-cw"></i> Reset Demo Mock Data
+        </button>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="app.closeSettingsModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="app.saveSettings()">Save Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. WhatsApp Message Selector Modal -->
+  <div id="whatsappModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3>Choose Reminder Message</h3>
+        <button class="btn btn-secondary btn-icon" style="width: 32px; height: 32px; border-radius: 8px;" onclick="app.closeWhatsappModal()">
+          <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+        </button>
+      </div>
+      <div class="modal-body" style="padding: 16px;">
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">
+          Select a template style to send to the client:
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="kpi-card" style="cursor: pointer; padding: 12px; display: flex; flex-direction: column; align-items: flex-start; text-align: left; border-color: var(--card-border);" onclick="app.sendSelectedWhatsApp(1)">
+            <span class="badge badge-info" style="margin-bottom: 8px; font-size: 0.65rem;">Template 1: Friendly Reminder</span>
+            <pre id="wa-preview-1" style="font-family: var(--font-mono); font-size: 0.75rem; white-space: pre-wrap; margin: 0; color: var(--text-primary); background: var(--bg-color); padding: 8px; border-radius: 6px; width: 100%; border: 1px solid var(--card-border); line-height: 1.3; pointer-events: none;"></pre>
+          </div>
+          <div class="kpi-card" style="cursor: pointer; padding: 12px; display: flex; flex-direction: column; align-items: flex-start; text-align: left; border-color: var(--card-border);" onclick="app.sendSelectedWhatsApp(2)">
+            <span class="badge badge-warning" style="margin-bottom: 8px; font-size: 0.65rem;">Template 2: Final Settlement</span>
+            <pre id="wa-preview-2" style="font-family: var(--font-mono); font-size: 0.75rem; white-space: pre-wrap; margin: 0; color: var(--text-primary); background: var(--bg-color); padding: 8px; border-radius: 6px; width: 100%; border: 1px solid var(--card-border); line-height: 1.3; pointer-events: none;"></pre>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: 10px 16px;">
+        <button class="btn btn-secondary" onclick="app.closeWhatsappModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript file -->
+  <script src="app.js"></script>
+  
+  <style>
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</body>
+</html>
