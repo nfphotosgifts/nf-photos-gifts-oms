@@ -22,6 +22,7 @@ class WeddingAlbumOMS {
     this.activeOrderId = null;
     this.statusFilter = 'all';
     this.renderTimeout = null;
+    this.isEditingAlbum = false;
 
     // Default album sizes and types
     this.albumTypes = [
@@ -32,11 +33,19 @@ class WeddingAlbumOMS {
     this.eventTypes = ['Wedding', 'Birthday', 'Anniversary', 'Baby Shoot', 'Corporate'];
   }
 
-  // 1. Initializer & Seeding
   async init() {
     this.loadTheme();
     this.checkFirebaseConfig();
     this.initializeUI();
+
+    // Register service worker for PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('Service Worker registered successfully:', reg.scope))
+          .catch(err => console.log('Service Worker registration failed:', err));
+      });
+    }
   }
 
   loadTheme() {
@@ -960,13 +969,14 @@ class WeddingAlbumOMS {
 
   switchView(viewId) {
     this.currentView = viewId;
+    this.isEditingAlbum = false;
 
-    // Toggle active state in desktop header tabs
-    document.querySelectorAll('.nav-tab').forEach(tab => {
-      tab.classList.remove('active');
+    // Toggle active state in sidebar drawer items
+    document.querySelectorAll('.drawer-item').forEach(item => {
+      item.classList.remove('active');
     });
-    const activeTab = document.getElementById(`tab-${viewId}`);
-    if (activeTab) activeTab.classList.add('active');
+    const activeDrawerItem = document.getElementById(`drawer-item-${viewId}`);
+    if (activeDrawerItem) activeDrawerItem.classList.add('active');
 
     // Toggle active state in mobile bottom bar
     document.querySelectorAll('.bottom-nav-item').forEach(tab => {
@@ -981,7 +991,8 @@ class WeddingAlbumOMS {
     });
 
     // Show selected view
-    document.getElementById(`view-${viewId}`).style.display = 'block';
+    const viewEl = document.getElementById(`view-${viewId}`);
+    if (viewEl) viewEl.style.display = 'block';
 
     if (viewId === 'dashboard') {
       this.activeOrderId = null;
@@ -990,9 +1001,284 @@ class WeddingAlbumOMS {
       this.renderPhotographers();
     } else if (viewId === 'reports') {
       this.renderReports();
+    } else if (viewId === 'invoices') {
+      this.renderInvoiceList();
     }
 
     lucide.createIcons();
+  }
+
+  scrollToSection(id) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+  }
+
+  showToast(message, type = 'success') {
+    const existing = document.querySelector('.toast-notification');
+    if (existing) {
+      existing.remove();
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast-notification ${type}`;
+    
+    const icon = type === 'success' ? 'check-circle' : (type === 'error' ? 'alert-triangle' : 'info');
+    toast.innerHTML = `<i data-lucide="${icon}" style="width: 18px; height: 18px;"></i><span>${message}</span>`;
+    
+    document.body.appendChild(toast);
+    lucide.createIcons();
+
+    setTimeout(() => {
+      toast.classList.add('show');
+    }, 10);
+
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => {
+        toast.remove();
+      }, 400);
+    }, 2000);
+  }
+
+  toggleSidebarMenu(forceState) {
+    const drawer = document.getElementById('sidebarMenuDrawer');
+    const overlay = document.getElementById('drawerOverlay');
+    if (!drawer || !overlay) return;
+
+    let show = !drawer.classList.contains('open');
+    if (typeof forceState !== 'undefined') {
+      show = forceState;
+    }
+
+    if (show) {
+      drawer.classList.add('open');
+      overlay.classList.add('open');
+    } else {
+      drawer.classList.remove('open');
+      overlay.classList.open ? overlay.classList.remove('open') : overlay.classList.remove('open');
+    }
+  }
+
+  handleDrawerItemClick(viewId) {
+    this.toggleSidebarMenu(false); // Close drawer
+    
+    if (viewId === 'settings') {
+      this.openSettingsModal();
+    } else {
+      this.switchView(viewId);
+    }
+  }
+
+  populateInvoicePhotographerDropdown() {
+    const select = document.getElementById('invoicePhotographerSelect');
+    if (!select) return;
+    
+    const currentSelection = select.value;
+    select.innerHTML = '<option value="">-- Select Photographer --</option>';
+    
+    this.photographers.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.innerText = p.name;
+      select.appendChild(opt);
+    });
+    
+    if (currentSelection) {
+      select.value = currentSelection;
+    }
+  }
+
+  renderInvoiceList() {
+    const select = document.getElementById('invoicePhotographerSelect');
+    const container = document.getElementById('invoiceOrdersList');
+    if (!select || !container) return;
+    
+    const pid = select.value;
+    container.innerHTML = '';
+    
+    if (!pid) {
+      container.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 40px;">Select a photographer to see pending projects.</div>';
+      return;
+    }
+    
+    // Filter pending projects (due > 0, status is not Delivered, Cancelled, Archived)
+    const pendingOrders = this.orders.filter(order => {
+      if (order.photographerId !== pid) return false;
+      if (order.status === 'Delivered' || order.status === 'Cancelled' || order.status === 'Archived') return false;
+      const fin = this.calculateOrderFinancials(order);
+      return fin.balance > 0;
+    });
+    
+    if (pendingOrders.length === 0) {
+      container.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 40px;">No pending projects found for this photographer. All projects are fully paid or delivered!</div>';
+      return;
+    }
+    
+    pendingOrders.forEach(order => {
+      const fin = this.calculateOrderFinancials(order);
+      const isChecked = this.selectedOrderIdsForInvoices && this.selectedOrderIdsForInvoices.has(order.id);
+      
+      const card = document.createElement('div');
+      card.className = 'order-card';
+      
+      card.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 16px; width: 100%;">
+          <!-- Checkbox for combined invoice select -->
+          <div onclick="event.stopPropagation();" style="display: flex; align-items: center;">
+            <input type="checkbox" class="invoice-select-checkbox" data-order-id="${order.id}" onchange="app.handleInvoiceSelectionChange(this)" ${isChecked ? 'checked' : ''} style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--accent-gold);">
+          </div>
+          
+          <!-- Info block -->
+          <div class="order-main-info" style="flex: 1;">
+            <div class="order-header">
+              <span class="order-id">${order.invoiceNumber}</span>
+              <span class="order-title">${order.clientName}</span>
+              <span class="badge badge-pending">${order.status}</span>
+            </div>
+            <div class="order-meta">
+              <span><i data-lucide="calendar" style="width: 14px; height: 14px; display: inline; vertical-align: middle; margin-right: 4px;"></i>Order Date: ${order.orderDate || 'N/A'}</span>
+              <span>•</span>
+              <span><i data-lucide="tag" style="width: 14px; height: 14px; display: inline; vertical-align: middle; margin-right: 4px;"></i>Event: ${order.eventType || 'N/A'}</span>
+            </div>
+          </div>
+          
+          <!-- Financials and actions -->
+          <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+            <div class="order-financials">
+              <div class="order-amt-block">
+                <span class="order-amt-label">Gross</span>
+                <div class="order-amt-val">₹${fin.gross.toLocaleString('en-IN')}</div>
+              </div>
+              <div class="order-amt-block">
+                <span class="order-amt-label">Paid</span>
+                <div class="order-amt-val" style="color: var(--success-color);">₹${fin.received.toLocaleString('en-IN')}</div>
+              </div>
+              <div class="order-amt-block">
+                <span class="order-amt-label">Due</span>
+                <div class="order-amt-val due">₹${fin.balance.toLocaleString('en-IN')}</div>
+              </div>
+            </div>
+            
+            <div style="display: flex; gap: 8px;" onclick="event.stopPropagation();">
+              <button class="btn btn-secondary" onclick="app.openOrderDetails('${order.id}')" title="Individual Invoice/Details" style="padding: 8px 12px; font-size: 0.85rem;">
+                <i data-lucide="file-text"></i> Invoice
+              </button>
+              <button class="btn btn-primary" onclick="app.openRecordPaymentModal('${order.id}')" title="Record Payment" style="padding: 8px 12px; font-size: 0.85rem;">
+                <i data-lucide="plus"></i> Pay
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      // Clicking the card anywhere checks the checkbox
+      card.onclick = () => {
+        const cb = card.querySelector('.invoice-select-checkbox');
+        if (cb) {
+          cb.checked = !cb.checked;
+          this.handleInvoiceSelectionChange(cb);
+        }
+      };
+      
+      container.appendChild(card);
+    });
+    
+    lucide.createIcons();
+  }
+
+  handleInvoiceSelectionChange(checkbox) {
+    const orderId = checkbox.dataset.orderId;
+    this.selectedOrderIdsForInvoices = this.selectedOrderIdsForInvoices || new Set();
+    
+    if (checkbox.checked) {
+      this.selectedOrderIdsForInvoices.add(orderId);
+    } else {
+      this.selectedOrderIdsForInvoices.delete(orderId);
+    }
+    
+    this.updateInvoiceCombinedActionBar();
+  }
+
+  updateInvoiceCombinedActionBar() {
+    const bar = document.getElementById('invoiceCombinedActionBar');
+    const countSpan = document.getElementById('selectedInvoiceCount');
+    if (!bar || !countSpan) return;
+
+    this.selectedOrderIdsForInvoices = this.selectedOrderIdsForInvoices || new Set();
+    const count = this.selectedOrderIdsForInvoices.size;
+    
+    if (count > 0) {
+      bar.style.display = 'flex';
+      countSpan.innerText = count;
+    } else {
+      bar.style.display = 'none';
+    }
+  }
+
+  clearInvoiceSelection() {
+    this.selectedOrderIdsForInvoices = new Set();
+    document.querySelectorAll('.invoice-select-checkbox').forEach(cb => {
+      cb.checked = false;
+    });
+    this.updateInvoiceCombinedActionBar();
+  }
+
+  generateCombinedInvoiceFromSelection() {
+    this.selectedOrderIdsForInvoices = this.selectedOrderIdsForInvoices || new Set();
+    if (this.selectedOrderIdsForInvoices.size === 0) return;
+    
+    // Copy selection to settlement set used by generateCombinedInvoice
+    this.selectedOrderIdsForSettlement = new Set(this.selectedOrderIdsForInvoices);
+    
+    // Clear invoice selections
+    this.clearInvoiceSelection();
+    
+    // Generate combined invoice using the existing system
+    this.generateCombinedInvoice();
+  }
+
+  handlePaymentAmountInput() {
+    const orderId = document.getElementById('payment-order-id').value;
+    const order = this.orders.find(o => o.id === orderId);
+    if (!order) return;
+
+    const fin = this.calculateOrderFinancials(order);
+    const enteredAmount = Number(document.getElementById('payment-amount').value) || 0;
+    const remaining = fin.balance - enteredAmount;
+
+    const balLabel = document.getElementById('payment-balance-label');
+    if (balLabel) {
+      if (remaining > 0) {
+        balLabel.innerText = `Outstanding Balance: ₹${fin.balance.toLocaleString('en-IN')} (Remaining: ₹${remaining.toLocaleString('en-IN')})`;
+        balLabel.style.color = 'var(--pending-color)';
+      } else if (remaining === 0) {
+        balLabel.innerText = `Outstanding Balance: ₹${fin.balance.toLocaleString('en-IN')} (Fully Paid)`;
+        balLabel.style.color = 'var(--success-color)';
+      } else {
+        balLabel.innerText = `Outstanding Balance: ₹${fin.balance.toLocaleString('en-IN')} (Excess: ₹${Math.abs(remaining).toLocaleString('en-IN')})`;
+        balLabel.style.color = 'var(--success-color)';
+      }
+    }
+  }
+
+  handleClientNameSpace(event) {
+    const input = event.target;
+    const val = input.value;
+    
+    // Check if user pressed spacebar
+    if (event.key === ' ') {
+      const trimmed = val.trim();
+      // If there's exactly one word typed and no spaces or ampersands exist yet
+      if (trimmed && !val.includes(' ') && !val.includes('&')) {
+        event.preventDefault(); // Prevent standard space character insertion
+        input.value = trimmed + ' & ';
+        
+        // Trigger input event to update any bound UI variables or validators
+        input.dispatchEvent(new Event('input'));
+      }
+    }
   }
 
   queueRender() {
@@ -1012,8 +1298,11 @@ class WeddingAlbumOMS {
       this.renderPhotographers();
     } else if (this.currentView === 'reports') {
       this.renderReports();
+    } else if (this.currentView === 'invoices') {
+      this.renderInvoiceList();
     }
     this.populatePhotographerDropdowns();
+    this.populateInvoicePhotographerDropdown();
   }
 
   // 4. Calculations Helpers
@@ -1085,66 +1374,23 @@ class WeddingAlbumOMS {
   renderDashboard() {
     this.populateStudioOrClientFilter();
 
-    // 1. Calculations KPIs
-    let monthProjects = 0; // Current Month Projects
-    let monthActiveAlbums = 0; // Current Month Active Albums
+    // 1. Calculations KPIs (All-Time)
+    let totalProjects = this.orders.length;
+    let activeAlbums = 0;
     let totalPending = 0; // Net Outstanding Balance (overall)
-
-    let monthBusiness = 0; // Current Month Business
-    let monthReceived = 0; // Current Month Received
-
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth(); // 0-11
+    let totalBusiness = 0;
+    let totalReceived = 0;
 
     this.orders.forEach(order => {
       const fin = this.calculateOrderFinancials(order);
       totalPending += fin.balance;
+      totalBusiness += fin.gross;
+      totalReceived += fin.received;
 
-      // Check if order was booked in current month
-      let isCurrentMonthOrder = false;
-      if (order.orderDate) {
-        const parts = order.orderDate.split('-');
-        if (parts.length === 3) {
-          const year = parseInt(parts[0], 10);
-          const month = parseInt(parts[1], 10) - 1; // 0-11
-          if (year === currentYear && month === currentMonth) {
-            isCurrentMonthOrder = true;
-          }
-        }
-      }
-
-      if (isCurrentMonthOrder) {
-        monthProjects++;
-
-        // Only count albums as active if the project is not delivered/cancelled/archived
-        if (order.status !== 'Delivered' && order.status !== 'Cancelled' && order.status !== 'Archived') {
-          if (order.albums) {
-            monthActiveAlbums += order.albums.length;
-          }
-        }
-
-        monthBusiness += fin.gross;
-
-        // Sum album-level received payments for orders booked this month
-        if (order.albums && order.albums.length > 0) {
-          order.albums.forEach(album => {
-            monthReceived += Number(album.received) || 0;
-          });
-        }
-      }
-    });
-
-    // Sum ledger payments received in the current month
-    this.payments.forEach(payment => {
-      if (payment.date) {
-        const parts = payment.date.split('-');
-        if (parts.length === 3) {
-          const year = parseInt(parts[0], 10);
-          const month = parseInt(parts[1], 10) - 1; // 0-11
-          if (year === currentYear && month === currentMonth) {
-            monthReceived += Number(payment.amount);
-          }
+      // Count active albums (not counting Delivered, Cancelled, or Archived status)
+      if (order.status !== 'Delivered' && order.status !== 'Cancelled' && order.status !== 'Archived') {
+        if (order.albums) {
+          activeAlbums += order.albums.length;
         }
       }
     });
@@ -1155,10 +1401,10 @@ class WeddingAlbumOMS {
       if (el) el.innerText = text;
     };
 
-    setElText('kpi-total-projects', monthProjects);
-    setElText('kpi-active-albums', monthActiveAlbums);
-    setElText('kpi-total-business', '₹' + monthBusiness.toLocaleString('en-IN'));
-    setElText('kpi-total-received', '₹' + monthReceived.toLocaleString('en-IN'));
+    setElText('kpi-total-projects', totalProjects);
+    setElText('kpi-active-albums', activeAlbums);
+    setElText('kpi-total-business', '₹' + totalBusiness.toLocaleString('en-IN'));
+    setElText('kpi-total-received', '₹' + totalReceived.toLocaleString('en-IN'));
     setElText('kpi-net-outstanding', '₹' + totalPending.toLocaleString('en-IN'));
 
     // Color code outstanding balance card
@@ -1512,13 +1758,20 @@ class WeddingAlbumOMS {
       customStatusInput.value = order.status;
     }
 
-    document.getElementById('detail-client-mobile').value = order.clientMobile || '';
-    document.getElementById('detail-order-date').value = order.orderDate || '';
-    document.getElementById('detail-event-date').value = order.eventDate || '';
-    document.getElementById('detail-delivery-date').value = order.deliveryDate || '';
-    document.getElementById('detail-raw-link').value = order.rawPhotosLink || '';
-    document.getElementById('detail-final-link').value = order.googleDriveLink || '';
-    document.getElementById('detail-notes').value = order.notes || '';
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      if (el && document.activeElement !== el) {
+        el.value = val || '';
+      }
+    };
+
+    setVal('detail-client-mobile', order.clientMobile);
+    setVal('detail-order-date', order.orderDate);
+    setVal('detail-event-date', order.eventDate);
+    setVal('detail-delivery-date', order.deliveryDate);
+    setVal('detail-raw-link', order.rawPhotosLink);
+    setVal('detail-final-link', order.googleDriveLink);
+    setVal('detail-notes', order.notes);
 
     // Handle show/hide client mobile visibility
     const showClientMobile = order.showClientMobile !== false;
@@ -1548,6 +1801,20 @@ class WeddingAlbumOMS {
   // Render album list in details view
   renderAlbumEditorCards(order) {
     const list = document.getElementById('itemizedAlbumsList');
+    if (!list) return;
+
+    if (this.isEditingAlbum) return;
+
+    // Prevent full redraw if the user is currently focused/typing in a text, number, or date input field
+    const activeEl = document.activeElement;
+    if (activeEl && list.contains(activeEl)) {
+      const tag = activeEl.tagName.toLowerCase();
+      const type = activeEl.type ? activeEl.type.toLowerCase() : '';
+      if (tag === 'textarea' || (tag === 'input' && (type === 'text' || type === 'number' || type === 'date'))) {
+        return;
+      }
+    }
+
     list.innerHTML = '';
 
     if (!order.albums || order.albums.length === 0) {
@@ -1624,7 +1891,7 @@ class WeddingAlbumOMS {
           <div class="form-group" style="margin-bottom: 0; display:flex; align-items:center; justify-content:space-between; height: 100%;">
             <div style="display:flex; flex-direction:column;">
               <span style="font-size: 0.65rem; font-weight:500; color:var(--text-secondary);">Cover Design</span>
-              <span style="font-size: 0.55rem; color:var(--text-secondary);">₹${album.coverCharge}</span>
+              <span class="album-cover-price" style="font-size: 0.55rem; color:var(--text-secondary);">₹${album.coverCharge}</span>
             </div>
             <label class="switch" style="transform: scale(0.85);">
               <input type="checkbox" ${album.coverIncluded ? 'checked' : ''} onchange="app.updateAlbumField(${idx}, 'coverIncluded', this.checked)">
@@ -1691,6 +1958,7 @@ class WeddingAlbumOMS {
       total: total
     });
 
+    this.isEditingAlbum = false;
     this.saveOrderDetails(order);
   }
 
@@ -1700,13 +1968,33 @@ class WeddingAlbumOMS {
 
     if (confirm("Are you sure you want to delete this album item?")) {
       order.albums.splice(idx, 1);
+      this.isEditingAlbum = false;
       this.saveOrderDetails(order);
     }
+  }
+
+  updateAlbumCardUI(idx, album) {
+    const list = document.getElementById('itemizedAlbumsList');
+    if (!list) return;
+    const cards = list.getElementsByClassName('album-item-card');
+    const card = cards[idx];
+    if (!card) return;
+
+    const coverPriceEl = card.querySelector('.album-cover-price');
+    if (coverPriceEl) coverPriceEl.innerText = `₹${album.coverCharge}`;
+
+    const totalEl = card.querySelector('.album-total-text');
+    if (totalEl) totalEl.innerText = `Total Amount: ₹${album.total}`;
+
+    const balEl = card.querySelector('.album-bal-text');
+    if (balEl) balEl.innerText = `Bal: ₹${album.total - (album.received || 0)}`;
   }
 
   updateAlbumField(idx, field, value) {
     const order = this.orders.find(o => o.id === this.activeOrderId);
     if (!order) return;
+
+    this.isEditingAlbum = true;
 
     if (field === 'pages' || field === 'rate' || field === 'received') {
       order.albums[idx][field] = Number(value);
@@ -1725,8 +2013,32 @@ class WeddingAlbumOMS {
 
     order.albums[idx].total = (pages * rate) + coverCharge;
 
+    // Update specific card UI directly in the DOM
+    this.updateAlbumCardUI(idx, order.albums[idx]);
 
-    this.saveOrderDetails(order);
+    // Recalculate overall order financials and update top-level cards directly
+    const fin = this.calculateOrderFinancials(order);
+    
+    const grossEl = document.getElementById('detail-gross-amount');
+    if (grossEl) grossEl.innerText = '₹' + fin.gross.toLocaleString('en-IN');
+    const recEl = document.getElementById('detail-received-amount');
+    if (recEl) recEl.innerText = '₹' + fin.received.toLocaleString('en-IN');
+    const balEl = document.getElementById('detail-balance-amount');
+    if (balEl) balEl.innerText = '₹' + fin.balance.toLocaleString('en-IN');
+
+    // Update Bill Slip request amount input if not custom edited
+    const requestInput = document.getElementById('billRequestAmount');
+    if (requestInput && (!requestInput.dataset.edited || requestInput.dataset.orderId !== order.id)) {
+      requestInput.value = fin.balance;
+      order.requestAmount = fin.balance;
+    }
+
+    // Render payment ledger and bill slip
+    this.renderPaymentLedger(order);
+    this.renderBillSlip();
+
+    // Silent save to write to DB without list redraw
+    this.saveOrderDetailsSilent(order);
   }
 
   updateOrderMeta(field, value) {
@@ -1810,6 +2122,7 @@ class WeddingAlbumOMS {
         this.orders[idx] = order;
         this.saveDemoDataToLocalStorage();
         this.renderOrderDetails(order.id);
+        this.queueRender();
       }
     }
   }
@@ -1832,294 +2145,121 @@ class WeddingAlbumOMS {
     // Check if combined invoice
     const isCombined = order.id === 'combined_temp';
 
-    // Hide or show appropriate sections based on invoice type
-    const billMetaRow = document.getElementById('billMetaRow');
-    const billMetaRowCombined = document.getElementById('billMetaRowCombined');
-    const billDetailsTitle = document.getElementById('billDetailsTitle');
-    const billDetailsTable = document.getElementById('billDetailsTable');
-    const billCombinedTableContainer = document.getElementById('billCombinedTableContainer');
-    const billDividerAfterDetails = document.getElementById('billDividerAfterDetails');
-    const billAlbumsTitle = document.getElementById('billAlbumsTitle');
-    const billAlbumsContainer = document.getElementById('billAlbumsContainer');
-    const billDividerAfterAlbums = document.getElementById('billDividerAfterAlbums');
-    
-    // Labels inside the summary card
-    const grossLabelEl = document.getElementById('billGrossLabel');
-    const paidLabelEl = document.getElementById('billPaidLabel');
-    const balanceLabelEl = document.getElementById('billBalanceLabel');
-    
-    // Set labels using simple words
-    if (grossLabelEl) grossLabelEl.innerText = 'Total Bill';
-    if (paidLabelEl) paidLabelEl.innerText = 'Total Paid';
-    if (balanceLabelEl) balanceLabelEl.innerText = 'Total Balance';
-
-    // Set header subtitle & type badge
-    const studioSubEl = document.getElementById('bill-studio-sub-top');
+    // Set badge text and header subtitle
     const typeBadgeEl = document.getElementById('bill-type-badge');
-    
-    // QR labels
-    const qrTitleEl = document.getElementById('billQrTitle');
-    const qrAmountRowEl = document.getElementById('billQrAmountRow');
-    const qrSubtextEl = document.getElementById('billQrSubtext');
-    const footerCombinedInfoEl = document.getElementById('billFooterCombinedInfo');
+    const studioSubEl = document.getElementById('bill-studio-sub-top');
+    if (typeBadgeEl) typeBadgeEl.innerText = isCombined ? 'COMBINED' : 'INVOICE';
+    if (studioSubEl) studioSubEl.innerText = isCombined ? 'Combined Studio Statement' : 'Studio Invoice Statement';
 
-    if (isCombined) {
-      // 1. Combined statement styling
-      if (studioSubEl) studioSubEl.innerText = 'Combined Studio Statement';
-      if (typeBadgeEl) typeBadgeEl.innerText = 'COMBINED';
+    // Setup metadata
+    const photog = this.photographers.find(p => p.id === order.photographerId || p.name === order.photographerName);
+    const phone = photog ? (photog.mobile || '') : '';
+    const studioName = order.photographerName || 'rp';
 
-      if (billMetaRow) billMetaRow.style.display = 'none';
-      if (billMetaRowCombined) {
-        billMetaRowCombined.style.display = 'flex';
-        
-        // Find photographer info
-        const photog = this.photographers.find(p => p.id === order.photographerId);
-        document.getElementById('bill-combined-studio').innerText = order.photographerName;
-        document.getElementById('bill-combined-phone').innerText = photog ? (photog.mobile || '') : '';
-        const combD = new Date();
-        const combMonth = combD.toLocaleString('en-US', { month: 'short' });
-        document.getElementById('bill-combined-date').innerText = `${combD.getDate()} ${combMonth} ${combD.getFullYear()}`;
-        document.getElementById('bill-combined-projects-count').innerText = order.orders ? order.orders.length : 0;
-      }
+    const studioValEl = document.getElementById('bill-combined-studio');
+    const studioPhoneEl = document.getElementById('bill-combined-phone');
+    if (studioValEl) studioValEl.innerText = studioName;
+    if (studioPhoneEl) studioPhoneEl.innerText = phone;
 
-      if (billDetailsTitle) billDetailsTitle.style.display = 'none';
-      if (billDetailsTable) billDetailsTable.style.display = 'none';
-      
-      // Render active projects table
-      if (billCombinedTableContainer) {
-        billCombinedTableContainer.style.display = 'block';
-        
-        let tableHtml = `
-          <div class="invoice-section-title">ACTIVE CLIENT PROJECTS</div>
-          <table class="statement-table">
-            <thead>
-              <tr>
-                <th align="left">Client Name</th>
-                <th align="center">Bill No.</th>
-                <th align="right">Gross</th>
-                <th align="right">Paid</th>
-                <th align="right">Balance</th>
-              </tr>
-            </thead>
-            <tbody>
-        `;
-        
-        if (order.orders && order.orders.length > 0) {
-          order.orders.forEach(o => {
-            // Calculate total sheets breakdown and cover count
-            const albums = o.albums || [];
-            const totalSheets = albums.reduce((sum, al) => sum + Number(al.pages || 0), 0);
-            const sheetsBreakdown = albums.map(al => al.pages).join('+');
-            
-            // Format subtext string e.g., "90 Sheets (40+40+10) | Covers"
-            let subtext = '';
-            if (albums.length > 0) {
-              subtext = `${totalSheets} Sheets (${sheetsBreakdown}) | Covers`;
-            } else {
-              subtext = `0 Sheets | Covers`;
-            }
+    // Format date as e.g. "23Jun2026"
+    const d = new Date();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const formattedDate = `${d.getDate()}${months[d.getMonth()]}${d.getFullYear()}`;
+    const dateValEl = document.getElementById('bill-combined-date');
+    if (dateValEl) dateValEl.innerText = formattedDate;
 
-            const subBadgeColor = o.balance <= 0 ? '#2E7D32' : (o.received > 0 ? '#E65100' : '#C62828');
-            const subBadgeText = o.balance <= 0 ? 'PAID' : (o.received > 0 ? 'PART-PAID' : 'UNPAID');
+    // Project Count
+    const projectCount = isCombined ? (order.orders ? order.orders.length : 0) : 1;
+    const projectCountEl = document.getElementById('bill-combined-projects-count');
+    if (projectCountEl) projectCountEl.innerText = projectCount;
 
-            tableHtml += `
-              <tr>
-                <td class="client-cell">
-                  ${o.clientName}
-                  <span class="event-subtext">${subtext}</span>
-                </td>
-                <td align="center">
-                  <span class="bill-badge" style="font-weight:700;">${o.invoiceNumber}</span>
-                  <div style="font-size:0.58rem; font-weight:700; color:${subBadgeColor}; margin-top:2px; letter-spacing:0.02em;">${subBadgeText}</div>
-                </td>
-                <td align="right" class="num-cell">Rs ${o.gross.toLocaleString('en-IN')}</td>
-                <td align="right" class="paid-cell">Rs ${o.received.toLocaleString('en-IN')}</td>
-                <td align="right" class="balance-cell">Rs ${o.balance.toLocaleString('en-IN')}</td>
-              </tr>
-            `;
-          });
+    const projectsLabelEl = document.getElementById('billProjectsLabel');
+    if (projectsLabelEl) projectsLabelEl.innerText = isCombined ? 'ACTIVE PROJECTS' : 'PROJECTS';
+
+    // Map projects list
+    const activeOrders = isCombined ? (order.orders || []) : [order];
+
+    // Render table
+    let tableHtml = `
+      <table class="statement-table">
+        <thead>
+          <tr>
+            <th align="left">Client Name</th>
+            <th align="center">Bill No.</th>
+            <th align="right">Rate</th>
+            <th align="right">Gross</th>
+            <th align="right">Paid</th>
+            <th align="right">Balance</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    if (activeOrders.length > 0) {
+      activeOrders.forEach(o => {
+        // Fetch or calculate financials dynamically for this order item
+        const oFin = (o.gross !== undefined && o.received !== undefined && o.balance !== undefined) 
+          ? o 
+          : this.calculateOrderFinancials(o);
+
+        // Fetch the rate from the first album
+        const rateVal = o.albums && o.albums[0] ? (Number(o.albums[0].rate) || 0) : 35;
+
+        // Calculate total sheets breakdown and cover count
+        const albums = o.albums || [];
+        const totalSheets = albums.reduce((sum, al) => sum + Number(al.pages || 0), 0);
+        const sheetsBreakdown = albums.map(al => al.pages).join('+');
+        const coverCount = albums.filter(al => al.coverIncluded).length;
+        const coverStr = coverCount === 1 ? '1 Cover' : `${coverCount} Covers`;
+
+        // Format subtext string e.g., "90 Sheets (40+40+10) | 3 Covers"
+        let subtext = '';
+        if (albums.length > 0) {
+          subtext = `${totalSheets} Sheets (${sheetsBreakdown}) | ${coverStr}`;
         } else {
-          tableHtml += `<tr><td colspan="5" align="center">No active projects found</td></tr>`;
+          subtext = `0 Sheets | 0 Covers`;
         }
+
+        const subBadgeColor = oFin.balance <= 0 ? '#2E7D32' : (oFin.received > 0 ? '#E65100' : '#C62828');
+        const subBadgeText = oFin.balance <= 0 ? 'PAID' : (oFin.received > 0 ? 'PART-PAID' : 'UNPAID');
 
         tableHtml += `
-            </tbody>
-          </table>
+          <tr>
+            <td class="client-cell">
+              ${o.clientName}
+              <div class="event-subtext">${subtext}</div>
+            </td>
+            <td align="center">
+              <span class="bill-badge" style="font-weight:700;">${o.invoiceNumber}</span>
+              <div style="font-size:0.58rem; font-weight:700; color:${subBadgeColor}; margin-top:2px; letter-spacing:0.02em;">${subBadgeText}</div>
+            </td>
+            <td align="right" class="num-cell">Rs ${rateVal}</td>
+            <td align="right" class="num-cell">Rs ${oFin.gross.toLocaleString('en-IN')}</td>
+            <td align="right" class="paid-cell">Rs ${oFin.received.toLocaleString('en-IN')}</td>
+            <td align="right" class="balance-cell">Rs ${oFin.balance.toLocaleString('en-IN')}</td>
+          </tr>
         `;
-        
-        billCombinedTableContainer.innerHTML = tableHtml;
-      }
-
-      if (billDividerAfterDetails) billDividerAfterDetails.style.display = 'block';
-      if (billAlbumsTitle) billAlbumsTitle.style.display = 'none';
-      if (billAlbumsContainer) {
-        billAlbumsContainer.style.display = 'none';
-        billAlbumsContainer.innerHTML = '';
-      }
-      if (billDividerAfterAlbums) billDividerAfterAlbums.style.display = 'none';
-
-      // QR section tweaks for combined
-      if (qrTitleEl) qrTitleEl.innerText = 'SCAN TO PAY COMPLETE PACKAGE';
-      if (qrSubtextEl) qrSubtextEl.style.display = 'block';
-      if (footerCombinedInfoEl) {
-        footerCombinedInfoEl.style.display = 'block';
-        footerCombinedInfoEl.innerText = `This is a combined statement for all active projects under ${order.photographerName}`;
-      }
-
+      });
     } else {
-      // 2. Single invoice styling
-      if (studioSubEl) studioSubEl.innerText = 'Wedding Album Specialists';
-      if (typeBadgeEl) typeBadgeEl.innerText = 'INVOICE';
-
-      if (billMetaRow) billMetaRow.style.display = 'flex';
-      if (billMetaRowCombined) billMetaRowCombined.style.display = 'none';
-      
-      document.getElementById('bill-invoice-no').innerText = order.invoiceNumber;
-      const sngD = order.orderDate ? new Date(order.orderDate) : new Date();
-      const sngMonth = sngD.toLocaleString('en-US', { month: 'short' });
-      document.getElementById('bill-invoice-date').innerText = `${sngD.getDate()} ${sngMonth} ${sngD.getFullYear()}`;
-
-      // Set Order and Payment Status for Single Invoice
-      const orderStatusEl = document.getElementById('bill-order-status');
-      if (orderStatusEl) {
-        orderStatusEl.innerText = order.status || 'Order Received';
-        if (order.status === 'Delivered' || order.status === 'Google Drive Link Sent' || order.status === 'Approved') {
-          orderStatusEl.style.color = '#2E7D32';
-        } else if (order.status === 'Changes Requested') {
-          orderStatusEl.style.color = '#C62828';
-        } else {
-          orderStatusEl.style.color = '#EF6C00';
-        }
-      }
-
-      const payStatusEl = document.getElementById('bill-payment-status');
-      if (payStatusEl) {
-        if (fin.balance <= 0) {
-          payStatusEl.innerText = 'PAID';
-          payStatusEl.style.backgroundColor = '#E8F5E9';
-          payStatusEl.style.color = '#2E7D32';
-          payStatusEl.style.borderColor = '#A5D6A7';
-        } else if (fin.received > 0) {
-          payStatusEl.innerText = 'PART PAID';
-          payStatusEl.style.backgroundColor = '#FFF3E0';
-          payStatusEl.style.color = '#E65100';
-          payStatusEl.style.borderColor = '#FFCC80';
-        } else {
-          payStatusEl.innerText = 'UNPAID';
-          payStatusEl.style.backgroundColor = '#FFEBEE';
-          payStatusEl.style.color = '#C62828';
-          payStatusEl.style.borderColor = '#FFCDD2';
-        }
-      }
-
-      if (billDetailsTitle) billDetailsTitle.style.display = 'block';
-      if (billDetailsTable) {
-        billDetailsTable.style.display = 'flex';
-        
-        let detailsTableHtml = `
-          <div class="invoice-details-row">
-            <span class="details-label">Studio</span>
-            <strong class="details-val" id="bill-photographer">${order.photographerName}</strong>
-          </div>
-          <div class="invoice-details-row">
-            <span class="details-label">Client Name</span>
-            <strong class="details-val" id="bill-client">${order.clientName}</strong>
-          </div>
-          <div class="invoice-details-row">
-            <span class="details-label">Event</span>
-            <strong class="details-val" id="bill-event">${order.eventType}</strong>
-          </div>
-        `;
-        
-        if (order.eventDate) {
-          const evD = new Date(order.eventDate);
-          const evMonth = evD.toLocaleString('en-US', { month: 'short' });
-          const formattedEvDate = `${evD.getDate()} ${evMonth} ${evD.getFullYear()}`;
-          detailsTableHtml += `
-            <div class="invoice-details-row">
-              <span class="details-label">Event Date</span>
-              <strong class="details-val">${formattedEvDate}</strong>
-            </div>
-          `;
-        }
-        billDetailsTable.innerHTML = detailsTableHtml;
-      }
-
-      if (billCombinedTableContainer) {
-        billCombinedTableContainer.style.display = 'none';
-        billCombinedTableContainer.innerHTML = '';
-      }
-
-      if (billDividerAfterDetails) billDividerAfterDetails.style.display = 'block';
-      if (billAlbumsTitle) billAlbumsTitle.style.display = 'block';
-      
-      // Render compact table for album details
-      if (billAlbumsContainer) {
-        billAlbumsContainer.style.display = 'block';
-        if (order.albums && order.albums.length > 0) {
-          let tableHtml = `
-            <table class="statement-table" style="margin-top: 4px; width: 100%;">
-              <thead>
-                <tr>
-                  <th align="left">Album Details</th>
-                  <th align="center">Pages</th>
-                  <th align="right">Rate</th>
-                  <th align="right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-          `;
-          
-          order.albums.forEach(album => {
-            const grossVal = album.pages * album.rate;
-            const subtext = album.coverIncluded ? `Cover design included (Rs ${album.coverCharge})` : 'No cover design charge';
-            const totalRow = grossVal + (album.coverIncluded ? album.coverCharge : 0);
-            
-            const isWeddingAlbum = ['Bride Album', 'Groom Album', 'Mixed Album', 'Reception Album'].includes(album.type);
-            let dateSubtext = '';
-            if (!isWeddingAlbum && album.eventDate) {
-              const albD = new Date(album.eventDate);
-              const albMonth = albD.toLocaleString('en-US', { month: 'short' });
-              const formattedAlbDate = `${albD.getDate()} ${albMonth} ${albD.getFullYear()}`;
-              dateSubtext = `<div style="font-size:0.62rem; color:var(--accent-gold-dark); font-weight:600; margin-top:2px;">Event Date: ${formattedAlbDate}</div>`;
-            }
-
-            tableHtml += `
-              <tr>
-                <td class="client-cell" align="left">
-                  ${album.type} <span style="font-size:0.65rem; color:#7A6F65; font-weight:normal;">(${album.size || 'N/A'})</span>
-                  <div style="font-size:0.62rem; color:#7A6F65; font-weight:normal; margin-top:2px;">${subtext}</div>
-                  ${dateSubtext}
-                </td>
-                <td align="center" class="num-cell">${album.pages}</td>
-                <td align="right" class="num-cell">Rs ${album.rate}</td>
-                <td align="right" class="num-cell" style="font-weight:700;">Rs ${totalRow.toLocaleString('en-IN')}</td>
-              </tr>
-            `;
-          });
-          
-          tableHtml += `
-              </tbody>
-            </table>
-          `;
-          billAlbumsContainer.innerHTML = tableHtml;
-        } else {
-          billAlbumsContainer.innerHTML = '<p style="font-size:0.75rem; text-align:center; padding:10px;">No albums added yet.</p>';
-        }
-      }
-      if (billDividerAfterAlbums) billDividerAfterAlbums.style.display = 'block';
-
-      // QR section tweaks for single
-      if (qrTitleEl) qrTitleEl.innerText = 'SCAN TO PAY VIA PHONEPE / GPAY / PAYTM';
-      if (qrSubtextEl) qrSubtextEl.style.display = 'none';
-      if (footerCombinedInfoEl) footerCombinedInfoEl.style.display = 'none';
+      tableHtml += `<tr><td colspan="6" align="center">No active projects found</td></tr>`;
     }
 
-    // Gross & Received & Outstanding & Balance (Use Rs instead of symbol)
+    tableHtml += `
+        </tbody>
+      </table>
+    `;
+
+    const tableContainer = document.getElementById('billCombinedTableContainer');
+    if (tableContainer) tableContainer.innerHTML = tableHtml;
+
+    // Gross & Received & Balance (Use Rs instead of symbol)
     const currencyStr = 'Rs ';
-    document.getElementById('bill-gross-total').innerText = currencyStr + fin.gross.toLocaleString('en-IN');
-    document.getElementById('bill-received').innerText = currencyStr + fin.received.toLocaleString('en-IN');
-    document.getElementById('bill-balance-total').innerText = currencyStr + fin.balance.toLocaleString('en-IN');
+    const grossTotalEl = document.getElementById('bill-gross-total');
+    const receivedEl = document.getElementById('bill-received');
+    const balanceTotalEl = document.getElementById('bill-balance-total');
+    if (grossTotalEl) grossTotalEl.innerText = currencyStr + fin.gross.toLocaleString('en-IN');
+    if (receivedEl) receivedEl.innerText = currencyStr + fin.received.toLocaleString('en-IN');
+    if (balanceTotalEl) balanceTotalEl.innerText = currencyStr + fin.balance.toLocaleString('en-IN');
 
     // QR generation block
     const qrSection = document.getElementById('billQrCodeSection');
@@ -2135,12 +2275,9 @@ class WeddingAlbumOMS {
           qrAmountTextEl.innerText = currencyStr + Number(reqAmount).toLocaleString('en-IN');
         }
 
+        const qrAmountRowEl = document.getElementById('billQrAmountRow');
         if (qrAmountRowEl) {
-          if (isCombined) {
-            qrAmountRowEl.innerHTML = `Total: <span id="billQrAmountText" style="font-weight:700;">${currencyStr}${Number(reqAmount).toLocaleString('en-IN')}</span>`;
-          } else {
-            qrAmountRowEl.innerHTML = `Amount: <span id="billQrAmountText" style="font-weight:700;">${currencyStr}${Number(reqAmount).toLocaleString('en-IN')}</span>`;
-          }
+          qrAmountRowEl.innerHTML = `Total <span id="billQrAmountText" style="font-weight:800;">${currencyStr}${Number(reqAmount).toLocaleString('en-IN')}</span>`;
         }
 
         const footerUpiEl = document.getElementById('footer-upi-id');
@@ -2148,6 +2285,11 @@ class WeddingAlbumOMS {
 
         const qrMerchantEl = document.getElementById('billQrMerchantId');
         if (qrMerchantEl) qrMerchantEl.innerText = upiId;
+
+        const qrSubtextEl = document.getElementById('billQrSubtext');
+        if (qrSubtextEl) {
+          qrSubtextEl.style.display = isCombined ? 'block' : 'none';
+        }
 
         // Generate canvas QR code
         const canvasEl = document.getElementById('upiQrCanvas');
@@ -2162,6 +2304,18 @@ class WeddingAlbumOMS {
       } else {
         qrSection.style.display = 'none';
       }
+    }
+
+    // Footer Text
+    const footerThankYouEl = document.getElementById('billFooterThankYou');
+    const footerSubInfoEl = document.getElementById('billFooterSubInfo');
+    if (footerThankYouEl) {
+      footerThankYouEl.innerText = isCombined ? 'Thank you for your rest statement.' : 'Thank you for choosing NF PHOTOS GIFTS!';
+    }
+    if (footerSubInfoEl) {
+      footerSubInfoEl.innerText = isCombined 
+        ? `This is a combined statement for all active projects under ${studioName}.`
+        : `This is a statement for the active project under ${studioName}.`;
     }
   }
 
@@ -2197,8 +2351,9 @@ class WeddingAlbumOMS {
     document.getElementById('recordPaymentModal').classList.add('active');
   }
 
-  openRecordPaymentModal() {
-    this.openQuickPayModal(this.activeOrderId);
+  openRecordPaymentModal(orderId) {
+    const id = orderId || this.activeOrderId;
+    this.openQuickPayModal(id);
   }
 
   closeRecordPaymentModal() {
@@ -2267,7 +2422,7 @@ class WeddingAlbumOMS {
           requestAmount: updatedBal > 0 ? updatedBal : 0
         });
 
-        alert("Payment recorded successfully!");
+        this.showToast("Payment recorded successfully!");
         this.closeRecordPaymentModal();
 
         // Auto-trigger WhatsApp Drive Share if payment is finalized and Final Link exists
@@ -2297,7 +2452,7 @@ class WeddingAlbumOMS {
       }
 
       this.saveDemoDataToLocalStorage();
-      alert("Payment recorded successfully!");
+      this.showToast("Payment recorded successfully!");
       this.closeRecordPaymentModal();
       this.queueRender();
       if (this.activeOrderId) {
@@ -2586,6 +2741,7 @@ class WeddingAlbumOMS {
         } else {
           await this.db.collection('photographers').add(pData);
         }
+        this.showToast("Photographer details saved successfully!");
         this.closePhotographerModal();
       } catch (err) {
         console.error("Error saving photographer:", err);
@@ -2603,6 +2759,7 @@ class WeddingAlbumOMS {
       }
       this.saveDemoDataToLocalStorage();
       this.closePhotographerModal();
+      this.showToast("Photographer details saved successfully!");
       this.queueRender();
     }
   }
@@ -2636,6 +2793,8 @@ class WeddingAlbumOMS {
       const opt = `<option value="${p.id}">${p.name}</option>`;
       createSelect.innerHTML += opt;
     });
+
+    this.populateInvoicePhotographerDropdown();
   }
 
   populateStudioOrClientFilter() {
@@ -2789,6 +2948,7 @@ class WeddingAlbumOMS {
 
         const viewDetails = confirm("Project Created successfully!\n\nClick OK to open Project Details and add albums.\nClick Cancel to return to Dashboard.");
         this.closeAddOrderModal();
+        this.showToast("Project created successfully!");
         if (viewDetails) {
           this.openOrderDetails(orderRef.id);
         } else {
@@ -2839,6 +2999,7 @@ class WeddingAlbumOMS {
       
       const viewDetails = confirm("Project Created successfully!\n\nClick OK to open Project Details and add albums.\nClick Cancel to return to Dashboard.");
       this.closeAddOrderModal();
+      this.showToast("Project created successfully!");
       this.queueRender();
       if (viewDetails) {
         this.openOrderDetails(newOrder.id);
@@ -3122,7 +3283,7 @@ class WeddingAlbumOMS {
   exportReport(format) {
     if (format === 'csv') {
       let csvContent = "data:text/csv;charset=utf-8,";
-      csvContent += "Invoice Number,Client Name,Photographer Name,Event Type,Booking Date,Status,Gross Total,Amount Paid,Amount Due\n";
+      csvContent += "Invoice Number,Client Name,Photographer Name,Event Type,Order Date,Status,Gross Total,Amount Paid,Amount Due\n";
 
       this.orders.forEach(o => {
         const fin = this.calculateOrderFinancials(o);
@@ -3169,10 +3330,23 @@ class WeddingAlbumOMS {
       }
     }, 'image/png');
 
-    window.open(this.generateWhatsAppURL(mobile, message), '_blank');
+    const cleanMobile = mobile.replace(/[^0-9]/g, '');
+    const prefix = cleanMobile.length === 10 ? '91' + cleanMobile : cleanMobile;
+    
+    const whatsappAppUrl = `whatsapp://send?phone=${prefix}&text=${encodeURIComponent(message)}`;
+    const webWhatsappUrl = `https://wa.me/${prefix}?text=${encodeURIComponent(message)}`;
+    
+    const start = Date.now();
+    window.location.href = whatsappAppUrl;
+    
+    setTimeout(() => {
+      if (Date.now() - start < 2000) {
+        window.open(webWhatsappUrl, '_blank');
+      }
+    }, 1500);
   }
 
-  sendWhatsAppInvoice() {
+  async sendWhatsAppInvoice() {
     const order = this.orders.find(o => o.id === this.activeOrderId);
     if (!order) return;
 
@@ -3198,13 +3372,13 @@ class WeddingAlbumOMS {
     this.renderBillSlip();
 
     // 2. Render HTML to canvas
-    const slipElement = document.getElementById('printableBillSlip');
+    try {
+      const canvas = await html2canvas(document.querySelector("#invoice-container"), {
+        scale: 3, // High-Quality PNG
+        useCORS: true,
+        backgroundColor: '#FAF8F2' // Cream background tone
+      });
 
-    html2canvas(slipElement, {
-      scale: 2, // Double quality
-      useCORS: true,
-      backgroundColor: '#FFFFFF'
-    }).then(canvas => {
       // 3. Trigger image download
       const link = document.createElement('a');
       link.download = `Invoice_${order.invoiceNumber}_${order.clientName.replace(/\s+/g, '_')}.png`;
@@ -3213,54 +3387,49 @@ class WeddingAlbumOMS {
       link.click();
       document.body.removeChild(link);
 
+      this.showToast("Invoice image generated! Opening WhatsApp...", "success");
+
       const upiLink = this.getUpiLink(order, fin.balance);
-      const message = fin.balance > 0
-        ? `👉 *Pay via UPI:* ${upiLink}`
-        : `*Invoice No:* ${order.invoiceNumber} (Paid)`;
+      const message = `✨ NF PHOTOS GIFTS ✨\nTotal Balance: Rs ${fin.balance.toLocaleString('en-IN')}\nTap and Pay here: ${upiLink}\n(Scan QR in bill to pay)`;
 
-      // 4. Try Web Share API (native share with file support, perfect for mobile/tablets)
-      canvas.toBlob(blob => {
+      // Convert base64 data URL to Blob
+      const response = await fetch(link.href);
+      const blob = await response.blob();
+      const file = new File([blob], `Invoice_${order.invoiceNumber}.png`, { type: 'image/png' });
+
+      const isMobile = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+      const shareData = {
+        files: [file],
+        title: `Invoice ${order.invoiceNumber}`,
+        text: 'Please paste the payment details below.'
+      };
+
+      if (isMobile && navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
-          const file = new File([blob], `Invoice_${order.invoiceNumber}.png`, { type: 'image/png' });
-
-          if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            btn.innerHTML = originalText;
-            lucide.createIcons();
-
-            navigator.share({
-              files: [file],
-              title: `Invoice ${order.invoiceNumber}`,
-              text: message
-            }).catch(err => {
-              console.log("Native share cancelled or failed, falling back to window.open", err);
-              this.copyToClipboardAndOpenWhatsApp(canvas, mobile, message);
-            });
-          } else {
-            // Standard Fallback: Copy to clipboard and open whatsapp link (for PC/Laptop)
-            btn.innerHTML = originalText;
-            lucide.createIcons();
-            this.copyToClipboardAndOpenWhatsApp(canvas, mobile, message);
-          }
-        } catch (shareErr) {
-          console.log("Share API error, falling back:", shareErr);
-          btn.innerHTML = originalText;
-          lucide.createIcons();
-          this.copyToClipboardAndOpenWhatsApp(canvas, mobile, message);
+          await navigator.clipboard.writeText(message);
+        } catch (clipErr) {
+          console.warn("Clipboard write failed:", clipErr);
         }
-      }, 'image/png');
-
-    }).catch(err => {
-      console.error("html2canvas error:", err);
+        btn.innerHTML = originalText;
+        lucide.createIcons();
+        await navigator.share(shareData);
+      } else {
+        // Standard Fallback: Copy to clipboard and open whatsapp link (for PC/Laptop)
+        btn.innerHTML = originalText;
+        lucide.createIcons();
+        this.copyToClipboardAndOpenWhatsApp(canvas, mobile, message);
+      }
+    } catch (err) {
+      console.error("html2canvas/share error:", err);
       btn.innerHTML = originalText;
       lucide.createIcons();
       alert("Error generating invoice image. Opening WhatsApp chat with payment link...");
 
       const upiLink = this.getUpiLink(order, fin.balance);
-      const message = fin.balance > 0
-        ? `👉 *Pay via UPI:* ${upiLink}`
-        : `*Invoice No:* ${order.invoiceNumber} (Paid)`;
+      const message = `✨ NF PHOTOS GIFTS ✨\nTotal Balance: Rs ${fin.balance.toLocaleString('en-IN')}\nTap and Pay here: ${upiLink}\n(Scan QR in bill to pay)`;
       window.open(this.generateWhatsAppURL(mobile, message), '_blank');
-    });
+    }
   }
 
   sendWhatsAppReminder() {
@@ -3379,7 +3548,7 @@ class WeddingAlbumOMS {
       }
     }
 
-    alert("Settings saved successfully!");
+    this.showToast("Settings saved successfully!");
     this.closeSettingsModal();
   }
 

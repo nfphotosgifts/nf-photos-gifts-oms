@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
-  <head>
-    <link rel="manifest" href="manifest.json">
+<head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NF PHOTOS GIFTS – Wedding Album OMS</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4f46e5">
   
   <!-- Firebase Compat CDNs -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -22,6 +23,45 @@
 </head>
 <body>
 
+  <!-- Sidebar Drawer Menu -->
+  <div id="sidebarMenuDrawer" class="sidebar-drawer">
+    <div class="drawer-header">
+      <div class="brand" style="margin-left: 8px;">
+        <div class="brand-logo">NF</div>
+        <div class="brand-details">
+          <h1 style="font-size: 1rem; text-transform: uppercase; margin: 0; line-height: 1.2;">NF Photos Gifts</h1>
+          <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0;">OMS & Billing</p>
+        </div>
+      </div>
+      <button class="btn btn-secondary btn-icon" onclick="app.toggleSidebarMenu(false)" style="border: none; background: transparent; padding: 4px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;">
+        <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+      </button>
+    </div>
+    <div class="drawer-content">
+      <div class="drawer-item active" onclick="app.handleDrawerItemClick('dashboard')" id="drawer-item-dashboard">
+        <i data-lucide="layout-dashboard"></i>
+        <span>Dashboard</span>
+      </div>
+      <div class="drawer-item" onclick="app.handleDrawerItemClick('photographers')" id="drawer-item-photographers">
+        <i data-lucide="users"></i>
+        <span>Photographers</span>
+      </div>
+      <div class="drawer-item" onclick="app.handleDrawerItemClick('invoices')" id="drawer-item-invoices">
+        <i data-lucide="file-text"></i>
+        <span>Invoices</span>
+      </div>
+      <div class="drawer-item" onclick="app.handleDrawerItemClick('reports')" id="drawer-item-reports">
+        <i data-lucide="bar-chart-3"></i>
+        <span>Reports</span>
+      </div>
+      <div class="drawer-item" onclick="app.handleDrawerItemClick('settings')" id="drawer-item-settings">
+        <i data-lucide="settings"></i>
+        <span>Settings</span>
+      </div>
+    </div>
+  </div>
+  <div id="drawerOverlay" class="drawer-overlay-bg" onclick="app.toggleSidebarMenu(false)"></div>
+
   <!-- Demo Mode Banner -->
   <div id="demoBanner" class="demo-banner" style="display: none;">
     <i data-lucide="info" style="width: 16px; height: 16px;"></i>
@@ -32,26 +72,18 @@
   <div class="container">
     <!-- Header -->
     <header>
-      <div class="brand">
-        <div class="brand-logo">NF</div>
-        <div class="brand-details">
-          <h1>NF Photos Gifts</h1>
-          <p>Order Management & Billing</p>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <button class="btn btn-secondary btn-icon" id="hamburgerMenuBtn" onclick="app.toggleSidebarMenu()" title="Navigation Menu" style="border: none; background: transparent; padding: 4px; width: 40px; height: 40px; min-width: 40px; display: flex; align-items: center; justify-content: center; margin-right: 4px;">
+          <i data-lucide="menu" style="width: 24px; height: 24px;"></i>
+        </button>
+        <div class="brand">
+          <div class="brand-logo">NF</div>
+          <div class="brand-details">
+            <h1>NF Photos Gifts</h1>
+            <p>Order Management & Billing</p>
+          </div>
         </div>
       </div>
-      
-      <!-- Desktop Navigation Tabs -->
-      <nav class="nav-tabs">
-        <div class="nav-tab active" onclick="app.switchView('dashboard')" id="tab-dashboard">
-          <i data-lucide="layout-dashboard" style="width: 16px; height: 16px; display: inline; vertical-align: middle; margin-right: 4px;"></i>Dashboard
-        </div>
-        <div class="nav-tab" onclick="app.switchView('photographers')" id="tab-photographers">
-          <i data-lucide="users" style="width: 16px; height: 16px; display: inline; vertical-align: middle; margin-right: 4px;"></i>Photographers
-        </div>
-        <div class="nav-tab" onclick="app.switchView('reports')" id="tab-reports">
-          <i data-lucide="bar-chart-3" style="width: 16px; height: 16px; display: inline; vertical-align: middle; margin-right: 4px;"></i>Reports
-        </div>
-      </nav>
 
       <div class="header-actions">
         <button class="btn btn-secondary btn-icon" id="headerSearchBtn" onclick="app.toggleHeaderSearch()" title="Search Projects">
@@ -91,7 +123,7 @@
           </div>
           <div class="kpi-icon"><i data-lucide="folder"></i></div>
         </div>
-        <div class="kpi-card">
+        <div class="kpi-card" style="cursor: pointer;" onclick="app.scrollToSection('active-section')">
           <div class="kpi-info">
             <h4>Active Albums</h4>
             <div class="kpi-value" id="kpi-active-albums">0</div>
@@ -115,7 +147,7 @@
       </div>
       
       <!-- Net Outstanding KPI -->
-      <div class="kpi-card-full" id="kpi-outstanding-card">
+      <div class="kpi-card-full" id="kpi-outstanding-card" style="cursor: pointer;" onclick="app.scrollToSection('pending-section')">
         <div class="kpi-info">
           <h4>Net Outstanding Balance</h4>
           <div class="kpi-value" id="kpi-net-outstanding" style="color: var(--pending-color); font-size: 2.2rem; margin-top: 4px;">₹0</div>
@@ -145,7 +177,7 @@
       </div>
 
       <!-- Search & Filters -->
-      <div class="search-filter-container" style="margin-top: 24px;">
+      <div class="search-filter-container" id="active-section" style="margin-top: 24px;">
         <div class="search-box" style="display: none;">
           <input type="text" id="dashboardSearch" placeholder="Search..." oninput="app.filterOrders()">
         </div>
@@ -181,6 +213,7 @@
       </div>
 
       <!-- Orders List Container -->
+      <div id="pending-section"></div>
       <div class="orders-list" id="ordersList">
         <!-- Rendered dynamically -->
         <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
@@ -270,7 +303,7 @@
 
             <div class="form-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 12px; margin-top: 8px;">
               <div class="form-group" style="margin-bottom: 0;">
-                <label>Booking Date</label>
+                <label>Order Date</label>
                 <input type="date" class="form-control" id="detail-order-date" onchange="app.updateOrderMeta('orderDate', this.value)">
               </div>
               <div class="form-group" style="margin-bottom: 0;">
@@ -405,7 +438,8 @@
           </div>
 
           <!-- The Physical Receipt Slip Redesigned to Match Screenshot -->
-          <div class="bill-slip" id="printableBillSlip">
+          <div id="invoice-container">
+            <div class="bill-slip" id="invoice-content">
             
             <!-- Golden Ribbon Seal Badge -->
             <div class="invoice-seal-badge" id="bill-seal-badge">
@@ -425,107 +459,69 @@
             
             <div class="invoice-divider"></div>
             
-            <!-- 2. Invoice Meta (Bill No, Status & Date) -->
-            <div class="invoice-meta-row" id="billMetaRow" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
-              <div style="flex: 1; text-align: left;">
-                <span class="invoice-meta-label">BILL NO.</span>
-                <div class="invoice-meta-val-large" id="bill-invoice-no">NF-XXX</div>
-              </div>
-              <div style="flex: 1; text-align: center;">
-                <span class="invoice-meta-label">STATUS</span>
-                <div class="invoice-meta-val" id="bill-order-status" style="font-weight: 700; font-size: 0.8rem; text-transform: uppercase;">Order Received</div>
-                <span class="bill-badge" id="bill-payment-status" style="margin-top: 4px; display: inline-block; font-size: 0.6rem; padding: 2px 6px;">Unpaid</span>
-              </div>
-              <div style="flex: 1; text-align: right;">
-                <span class="invoice-meta-label">DATE</span>
-                <div class="invoice-meta-val" id="bill-invoice-date" style="font-weight: 600;">18 Jun 2026</div>
-              </div>
-            </div>
-
-            <!-- New Meta Row for Combined Invoice (Studio, Date, Active Projects) -->
-            <div class="invoice-meta-row-combined" id="billMetaRowCombined" style="display: none; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
-              <div>
+            <!-- 2. Redesigned Unified Meta Row (Studio, Invoice Date, Active Projects) -->
+            <div class="invoice-meta-row-combined" id="billMetaRowUnified" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; font-size: 0.8rem;">
+              <div style="flex: 1.2; text-align: left;">
                 <span class="invoice-meta-label">STUDIO</span>
-                <div class="invoice-meta-val-large" id="bill-combined-studio" style="color: var(--accent-gold-dark);">rp</div>
+                <div class="invoice-meta-val-large" id="bill-combined-studio" style="color: var(--accent-gold-dark); font-size: 1.25rem;">rp</div>
                 <div class="invoice-meta-subval" id="bill-combined-phone" style="font-size: 0.8rem; color: #7A6F65; font-weight: 600; margin-top: 2px;">7725889331</div>
               </div>
-              <div style="text-align: right;">
+              <div style="flex: 1.2; text-align: center;">
                 <span class="invoice-meta-label">INVOICE DATE</span>
-                <div class="invoice-meta-val" id="bill-combined-date" style="font-weight: 600;">23 Jun 2026</div>
-                <span class="invoice-meta-label" style="margin-top: 8px; display: block;">ACTIVE PROJECTS</span>
-                <div class="invoice-meta-val-large" id="bill-combined-projects-count" style="color: var(--accent-gold-dark); font-size: 2rem; line-height: 1; margin-top: 2px;">2</div>
+                <div class="invoice-meta-val" id="bill-combined-date" style="font-weight: 700; font-size: 1.1rem; margin-top: 2px;">23Jun2026</div>
+              </div>
+              <div style="flex: 1; text-align: right;">
+                <span class="invoice-meta-label" id="billProjectsLabel">ACTIVE PROJECTS</span>
+                <div class="invoice-meta-val-large" id="bill-combined-projects-count" style="color: var(--accent-gold-dark); font-size: 1.8rem; line-height: 1; margin-top: 2px;">2</div>
               </div>
             </div>
             
             <div class="invoice-divider"></div>
             
-            <!-- 3. Client Details -->
-            <div class="invoice-section-title" id="billDetailsTitle">CLIENT DETAILS</div>
-            <div class="invoice-details-table" id="billDetailsTable">
-              <div class="invoice-details-row">
-                <span class="details-label">Studio</span>
-                <strong class="details-val" id="bill-photographer">nf</strong>
-              </div>
-              <div class="invoice-details-row">
-                <span class="details-label">Client Name</span>
-                <strong class="details-val" id="bill-client">priya mohan</strong>
-              </div>
-              <div class="invoice-details-row">
-                <span class="details-label">Event</span>
-                <strong class="details-val" id="bill-event">Wedding</strong>
-              </div>
-            </div>
-
-            <!-- Combined Projects Table Container -->
-            <div id="billCombinedTableContainer" style="display: none; margin-bottom: 12px; width: 100%;">
+            <!-- 3. Unified Statement Projects Table Container -->
+            <div id="billCombinedTableContainer" style="margin-bottom: 12px; width: 100%;">
               <!-- Rendered dynamically -->
             </div>
             
-            <div class="invoice-divider" id="billDividerAfterDetails"></div>
+            <div class="invoice-divider"></div>
             
-            <!-- 4. Album Details -->
-            <div class="invoice-section-title" id="billAlbumsTitle">ALBUM DETAILS</div>
-            <div id="billAlbumsContainer">
-              <!-- Itemized album detail cards populated dynamically -->
-            </div>
-            
-            <div class="invoice-divider" id="billDividerAfterAlbums"></div>
-            
-            <!-- 5. Payment Summary -->
-            <div class="invoice-section-title" id="billSummaryTitle">PAYMENT SUMMARY</div>
-            <div class="payment-summary-card">
-              <div class="summary-row">
-                <span id="billGrossLabel">Total Bill</span>
-                <strong id="bill-gross-total">₹0</strong>
+            <!-- 4. Unified Payment Summary -->
+            <div class="invoice-section-title" id="billSummaryTitle">SUMMARY</div>
+            <div class="horizontal-summary-grid">
+              <div class="summary-col">
+                <span class="summary-col-label">Total Bill</span>
+                <strong class="summary-col-val" id="bill-gross-total" style="color: #D32F2F;">Rs 0</strong>
               </div>
-              <div class="summary-row">
-                <span id="billPaidLabel">Total Paid</span>
-                <strong id="bill-received" style="color: var(--success-color);">₹0</strong>
+              <div class="summary-col">
+                <span class="summary-col-label">Total Paid</span>
+                <strong class="summary-col-val" id="bill-received" style="color: #D32F2F;">Rs 0</strong>
               </div>
-              <div class="summary-row-large">
-                <span id="billBalanceLabel">Total Balance</span>
-                <strong id="bill-balance-total" class="net-pending-balance-text">₹0</strong>
+              <div class="summary-col">
+                <span class="summary-col-label">Total Balance</span>
+                <strong class="summary-col-val highlight" id="bill-balance-total" style="color: #D32F2F;">Rs 0</strong>
               </div>
             </div>
             
-            <!-- 6. QR Code Section -->
-            <div id="billQrCodeSection" class="invoice-qr-card">
-              <div class="qr-title" id="billQrTitle">SCAN TO PAY VIA PHONEPE / GPAY / PAYTM</div>
+            <!-- 5. QR Code Section -->
+            <div id="billQrCodeSection" class="invoice-qr-card-gold" style="margin-top: 12px;">
+              <div class="qr-title" id="billQrTitle">SCAN TO PAY COMPLETE PACKAGE</div>
               <div class="invoice-qr-container">
                 <canvas id="upiQrCanvas"></canvas>
               </div>
               <div class="qr-merchant-id" id="billQrMerchantId">photosgiftsbynf@sbi</div>
-              <div class="qr-amount-text" id="billQrAmountRow">Amount: <span id="billQrAmountText">₹0</span></div>
-              <div class="qr-subtext" id="billQrSubtext" style="display: none; font-size: 0.65rem; color: var(--accent-gold-dark); margin-top: 4px; font-weight: 600; text-align: center;">Single payment for all active projects</div>
+              <div class="qr-amount-text" id="billQrAmountRow">Total <span id="billQrAmountText">Rs 0</span></div>
+              <div class="qr-subtext" id="billQrSubtext" style="display: none; font-size: 0.65rem; color: #7A6F65; margin-top: 4px; font-weight: 600; text-align: center;">Single payment for all active projects</div>
             </div>
             
-            <!-- 7. Footer -->
+            <div class="invoice-divider"></div>
+
+            <!-- 6. Footer -->
             <div class="invoice-footer-section">
-              <p class="footer-thankyou">Thank you for choosing NF PHOTOS GIFTS!</p>
-              <p class="footer-subinfo">UPI: <span id="footer-upi-id">photosgiftsbynf@sbi</span> | Quality You Can Trust</p>
-              <p class="footer-combined-info" id="billFooterCombinedInfo" style="display: none; font-size: 0.65rem; color: #7A6F65; margin-top: 6px; font-style: italic; text-align: center;">This is a combined statement for all active projects under rp</p>
+              <p class="footer-thankyou" id="billFooterThankYou" style="font-size: 0.8rem; font-weight: bold; margin: 2px 0;">Thank you for your rest statement.</p>
+              <p class="footer-subinfo" id="billFooterSubInfo" style="font-size: 0.65rem; color: #7A6F65;">This is a combined statement for all active projects under rp.</p>
             </div>
             
+          </div>
           </div>
           
           <!-- Action Buttons -->
@@ -698,6 +694,39 @@
 
       </div>
     </div>
+
+    <!-- 5. Invoices View -->
+    <div id="view-invoices" class="app-view" style="display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <h2>Invoices & Billing</h2>
+      </div>
+
+      <div class="search-filter-container">
+        <div class="form-group" style="margin-bottom: 0; max-width: 300px;">
+          <label for="invoicePhotographerSelect">Filter by Photographer</label>
+          <select class="form-control" id="invoicePhotographerSelect" onchange="app.renderInvoiceList()">
+            <!-- Loaded dynamically -->
+          </select>
+        </div>
+      </div>
+
+      <!-- Action bar for combined invoice selection -->
+      <div id="invoiceCombinedActionBar" class="kpi-card-full" style="display: none; background-color: var(--accent-gold-light); border-left-color: var(--accent-gold); margin-bottom: 20px; align-items: center; justify-content: space-between; padding: 16px;">
+        <div>
+          <i data-lucide="check-square" style="color: var(--accent-gold-dark); vertical-align: middle; margin-right: 8px;"></i>
+          <span>Selected <strong><span id="selectedInvoiceCount">0</span></strong> pending projects for combined billing.</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-secondary" onclick="app.clearInvoiceSelection()">Clear Selection</button>
+          <button class="btn btn-primary" onclick="app.generateCombinedInvoiceFromSelection()">Generate Combined Invoice</button>
+        </div>
+      </div>
+
+      <!-- Invoice orders list -->
+      <div class="orders-list" id="invoiceOrdersList">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
   </div>
 
   <!-- Mobile Bottom Navigation Bar -->
@@ -709,6 +738,10 @@
     <div class="bottom-nav-item" onclick="app.switchView('photographers')" id="bottom-tab-photographers">
       <i data-lucide="users"></i>
       <span>Photographers</span>
+    </div>
+    <div class="bottom-nav-item" onclick="app.switchView('invoices')" id="bottom-tab-invoices">
+      <i data-lucide="file-text"></i>
+      <span>Invoices</span>
     </div>
     <div class="bottom-nav-item" onclick="app.switchView('reports')" id="bottom-tab-reports">
       <i data-lucide="bar-chart-3"></i>
@@ -821,7 +854,7 @@
         <div class="form-row">
           <div class="form-group">
             <label for="order-client-name">Client Name *</label>
-            <input type="text" class="form-control" id="order-client-name" placeholder="E.g., Priya & Rohan">
+            <input type="text" class="form-control" id="order-client-name" placeholder="Groom Name & Bride Name" autocomplete="off" onkeydown="app.handleClientNameSpace(event)">
           </div>
           <div class="form-group">
             <label for="order-client-mobile">Client Mobile</label>
@@ -850,7 +883,7 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label for="order-date">Booking Date</label>
+            <label for="order-date">Order Date</label>
             <input type="date" class="form-control" id="order-date">
           </div>
           <div class="form-group">
@@ -896,7 +929,7 @@
         <div class="form-row">
           <div class="form-group">
             <label for="payment-amount">Payment Amount (₹) *</label>
-            <input type="number" class="form-control" id="payment-amount" placeholder="Enter amount received...">
+            <input type="number" class="form-control" id="payment-amount" placeholder="Enter amount received..." oninput="app.handlePaymentAmountInput()">
           </div>
           <div class="form-group">
             <label for="payment-type">Payment Type</label>

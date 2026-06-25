@@ -1,8 +1,21 @@
 {
-  "name": "NF PHOTOS GIFTS",
-  "short_name": "NF PHOTOS",
-  "start_url": "index.html",
+  "name": "Wedding Album OMS",
+  "short_name": "Album OMS",
+  "description": "Order Management System for Wedding Albums by NF Photos Gifts",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#000000"
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1375/1375106.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1375/1375106.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
 }
