@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NF PHOTOS GIFTS – Wedding Album OMS</title>
+  <title>NF OMS - Wedding Album OMS</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#4f46e5">
@@ -29,7 +29,7 @@
       <div class="brand" style="margin-left: 8px;">
         <div class="brand-logo">NF</div>
         <div class="brand-details">
-          <h1 style="font-size: 1rem; text-transform: uppercase; margin: 0; line-height: 1.2;">NF Photos Gifts</h1>
+          <h1 style="font-size: 1rem; text-transform: uppercase; margin: 0; line-height: 1.2;">NF OMS</h1>
           <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0;">OMS & Billing</p>
         </div>
       </div>
@@ -79,7 +79,7 @@
         <div class="brand">
           <div class="brand-logo">NF</div>
           <div class="brand-details">
-            <h1>NF Photos Gifts</h1>
+            <h1>NF OMS</h1>
             <p>Order Management & Billing</p>
           </div>
         </div>
@@ -92,12 +92,24 @@
         <button class="btn btn-secondary btn-icon" id="themeToggleBtn" onclick="app.toggleTheme()" title="Toggle Theme">
           <i data-lucide="moon"></i>
         </button>
-        <button class="btn btn-secondary btn-icon" onclick="app.openSettingsModal()" title="Settings">
-          <i data-lucide="settings"></i>
-        </button>
-        <button class="btn btn-primary" onclick="app.openAddOrderModal()">
-          <i data-lucide="plus"></i> <span>New Project</span>
-        </button>
+        
+        <!-- Unified '+' Quick Action Button Dropdown -->
+        <div class="dropdown" style="position: relative; display: inline-block;">
+          <button class="btn btn-primary btn-icon" onclick="app.toggleQuickActionDropdown(event)" title="Add New..." id="quickActionBtn" style="width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+            <i data-lucide="plus" style="width: 20px; height: 20px;"></i>
+          </button>
+          <div id="quickActionDropdown" class="dropdown-menu" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 8px; background-color: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); z-index: 1000; min-width: 180px; padding: 6px 0;">
+            <a href="#" onclick="app.quickActionAddClient(event)" style="display: flex; align-items: center; gap: 8px; padding: 10px 16px; color: var(--text-primary); text-decoration: none; font-size: 0.95rem; font-weight: 500; transition: background 0.2s;">
+              <i data-lucide="user-plus" style="width: 16px; height: 16px; color: var(--accent-gold-dark);"></i>
+              New Client
+            </a>
+            <div style="height: 1px; background-color: var(--card-border); margin: 4px 0;"></div>
+            <a href="#" onclick="app.quickActionAddPhotographer(event)" style="display: flex; align-items: center; gap: 8px; padding: 10px 16px; color: var(--text-primary); text-decoration: none; font-size: 0.95rem; font-weight: 500; transition: background 0.2s;">
+              <i data-lucide="camera" style="width: 16px; height: 16px; color: var(--accent-gold-dark);"></i>
+              Add Photographer
+            </a>
+          </div>
+        </div>
       </div>
 
       <!-- Header Search Overlay -->
@@ -282,6 +294,22 @@
             </div>
 
             <div class="form-row">
+              <div class="form-group">
+                <label for="detail-event-type">Event Type</label>
+                <select class="form-control" id="detail-event-type" onchange="app.updateOrderEventType(this.value)">
+                  <option value="Wedding">Wedding</option>
+                  <option value="Birthday">Birthday</option>
+                  <option value="Anniversary">Anniversary</option>
+                  <option value="Baby Shoot">Baby Shoot</option>
+                  <option value="Corporate">Corporate</option>
+                  <option value="Other">Other (Custom Text)</option>
+                </select>
+                <!-- For Custom Editable Event Type -->
+                <input type="text" class="form-control" id="detail-custom-event-type" placeholder="Enter custom event..." style="display: none; margin-top: 8px;" onchange="app.updateOrderCustomEventType(this.value)">
+              </div>
+            </div>
+
+            <div class="form-row">
               <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                 <label class="switch" style="transform: scale(0.85); margin-bottom: 0;">
                   <input type="checkbox" id="detail-show-client-mobile" onchange="app.toggleClientMobile(this.checked)">
@@ -329,7 +357,7 @@
               </div>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" id="final-link-container" style="display: none;">
               <label style="display: flex; justify-content: space-between; align-items: center;">
                 <span>Final Album Link (Google Drive)</span>
                 <span id="finalDesignFeedback" style="font-size: 0.75rem; color: var(--success-color); display: none; text-transform: none; font-weight: normal;">✓ Saved</span>
@@ -339,7 +367,7 @@
                 <button class="btn btn-secondary" onclick="app.openFinalDesignLink()" title="Open Final Album Drive">
                   <i data-lucide="external-link"></i>
                 </button>
-                <button class="btn btn-secondary" onclick="app.sendWhatsAppDriveLink()" title="Share Drive Link via WhatsApp" style="color: #25D366; border-color: rgba(37, 211, 102, 0.3);">
+                <button class="btn btn-secondary" onclick="app.sendWhatsAppDriveLink()" title="Share Drive Link" style="color: #25D366; border-color: rgba(37, 211, 102, 0.3);">
                   <i data-lucide="share-2"></i>
                 </button>
               </div>
@@ -348,28 +376,6 @@
             <div class="form-group" style="margin-bottom: 0;">
               <label>Notes / Special Requests</label>
               <textarea class="form-control" id="detail-notes" placeholder="Add specific requirements..." onchange="app.updateOrderMeta('notes', this.value)"></textarea>
-            </div>
-          </div>
-          
-          <!-- Top Financial Cards -->
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
-            <div class="kpi-card" style="padding: 16px;">
-              <div class="kpi-info">
-                <h4 style="font-size: 0.65rem;">Gross Bill</h4>
-                <div class="kpi-value" id="detail-gross-amount" style="font-size: 1.4rem;">₹0</div>
-              </div>
-            </div>
-            <div class="kpi-card" style="padding: 16px;">
-              <div class="kpi-info">
-                <h4 style="font-size: 0.65rem;">Received</h4>
-                <div class="kpi-value" id="detail-received-amount" style="font-size: 1.4rem; color: var(--success-color);">₹0</div>
-              </div>
-            </div>
-            <div class="kpi-card" style="padding: 16px;">
-              <div class="kpi-info">
-                <h4 style="font-size: 0.65rem;">Balance</h4>
-                <div class="kpi-value" id="detail-balance-amount" style="font-size: 1.4rem; color: var(--pending-color);">₹0</div>
-              </div>
             </div>
           </div>
           
@@ -387,6 +393,45 @@
             <button class="btn btn-secondary" style="width: 100%; margin-top: 8px;" onclick="app.addNewAlbumItem()">
               <i data-lucide="plus"></i> Add Another Album
             </button>
+          </div>
+          
+          <!-- Financials and Advance Section -->
+          <div class="order-detail-header-card" style="padding: 16px; margin-bottom: 16px;">
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label for="detail-advance-payment" style="font-weight: 600; font-size: 0.85rem;">Advance (₹)</label>
+              <input type="number" class="form-control" id="detail-advance-payment" placeholder="Enter advance payment..." oninput="app.updateOrderAdvancePayment(this.value)">
+            </div>
+            
+            <!-- Quick WhatsApp Share Buttons -->
+            <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+              <button class="btn btn-secondary" onclick="app.sendWhatsAppInvoice('qr')" style="flex: 1; background-color: #D4AF37; color: white; border: none; font-size: 0.78rem; padding: 6px 10px; height: 36px; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 8px;">
+                <i data-lucide="qr-code" style="width: 14px; height: 14px;"></i> Share QR (Quick)
+              </button>
+              <button class="btn btn-secondary" onclick="app.sendWhatsAppInvoice('link')" style="flex: 1; border-color: #25D366; color: #128C7E; font-size: 0.78rem; padding: 6px 10px; height: 36px; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 8px; background: transparent;">
+                <i data-lucide="link" style="width: 14px; height: 14px;"></i> Share Link (Quick)
+              </button>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+              <div class="kpi-card" style="padding: 12px; background-color: var(--bg-color); border: 1px solid var(--card-border);">
+                <div class="kpi-info">
+                  <h4 style="font-size: 0.65rem;">Gross Bill</h4>
+                  <div class="kpi-value" id="detail-gross-amount" style="font-size: 1.25rem;">₹0</div>
+                </div>
+              </div>
+              <div class="kpi-card" style="padding: 12px; background-color: var(--bg-color); border: 1px solid var(--card-border);">
+                <div class="kpi-info">
+                  <h4 style="font-size: 0.65rem;">Received</h4>
+                  <div class="kpi-value" id="detail-received-amount" style="font-size: 1.25rem; color: var(--success-color);">₹0</div>
+                </div>
+              </div>
+              <div class="kpi-card" style="padding: 12px; background-color: var(--bg-color); border: 1px solid var(--card-border);">
+                <div class="kpi-info">
+                  <h4 style="font-size: 0.65rem;">Balance</h4>
+                  <div class="kpi-value" id="detail-balance-amount" style="font-size: 1.25rem; color: var(--pending-color);">₹0</div>
+                </div>
+              </div>
+            </div>
           </div>
           
           <!-- Payment Ledger -->
@@ -417,125 +462,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Bill Slip Receipt Roll & UPI QR -->
-        <div class="bill-slip-container">
-          
-          <!-- QR Settings Controls -->
-          <div style="background-color: var(--bg-color); padding: 16px; border-radius: 12px; border: 1px solid var(--card-border);">
-            <div class="toggle-group" style="padding: 0; border: none; background: transparent; margin-bottom: 12px;">
-              <span style="font-size: 0.85rem; font-weight: 500;">Include UPI QR on Bill</span>
-              <label class="switch">
-                <input type="checkbox" id="toggleIncludeQR" onchange="app.renderBillSlip()" checked>
-                <span class="slider"></span>
-              </label>
-            </div>
-            <div class="form-group" style="margin-bottom: 0;">
-              <label for="billRequestAmount" style="font-size: 0.7rem;">Request Amount (₹)</label>
-              <input type="number" class="form-control" id="billRequestAmount" placeholder="Amount to collect..." oninput="app.updateRequestAmount(this.value)">
-              <p style="font-size: 0.65rem; color: var(--text-secondary); margin-top: 4px;">Edit for partial payments. UPI & QR updates instantly.</p>
-            </div>
-          </div>
-
-          <!-- The Physical Receipt Slip Redesigned to Match Screenshot -->
-          <div id="invoice-container">
-            <div class="bill-slip" id="invoice-content">
-            
-            <!-- Golden Ribbon Seal Badge -->
-            <div class="invoice-seal-badge" id="bill-seal-badge">
-              <div class="seal-circle">
-                <div class="seal-text" id="bill-type-badge">INVOICE</div>
-              </div>
-              <div class="seal-ribbon ribbon-left"></div>
-              <div class="seal-ribbon ribbon-right"></div>
-            </div>
-
-            <!-- 1. Centered Brand Header -->
-            <div class="invoice-brand-info-center">
-              <div class="monogram-logo">NF</div>
-              <h3 class="invoice-brand-name" id="bill-studio-name-top" style="font-size: 1.3rem; margin-top: 4px; color: #1A1A1A;">NF PHOTOS GIFTS</h3>
-              <p class="invoice-brand-sub" id="bill-studio-sub-top" style="font-size: 0.8rem; color: #7A6F65; font-weight: 600;">Wedding Album Specialists</p>
-            </div>
-            
-            <div class="invoice-divider"></div>
-            
-            <!-- 2. Redesigned Unified Meta Row (Studio, Invoice Date, Active Projects) -->
-            <div class="invoice-meta-row-combined" id="billMetaRowUnified" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; font-size: 0.8rem;">
-              <div style="flex: 1.2; text-align: left;">
-                <span class="invoice-meta-label">STUDIO</span>
-                <div class="invoice-meta-val-large" id="bill-combined-studio" style="color: var(--accent-gold-dark); font-size: 1.25rem;">rp</div>
-                <div class="invoice-meta-subval" id="bill-combined-phone" style="font-size: 0.8rem; color: #7A6F65; font-weight: 600; margin-top: 2px;">7725889331</div>
-              </div>
-              <div style="flex: 1.2; text-align: center;">
-                <span class="invoice-meta-label">INVOICE DATE</span>
-                <div class="invoice-meta-val" id="bill-combined-date" style="font-weight: 700; font-size: 1.1rem; margin-top: 2px;">23Jun2026</div>
-              </div>
-              <div style="flex: 1; text-align: right;">
-                <span class="invoice-meta-label" id="billProjectsLabel">ACTIVE PROJECTS</span>
-                <div class="invoice-meta-val-large" id="bill-combined-projects-count" style="color: var(--accent-gold-dark); font-size: 1.8rem; line-height: 1; margin-top: 2px;">2</div>
-              </div>
-            </div>
-            
-            <div class="invoice-divider"></div>
-            
-            <!-- 3. Unified Statement Projects Table Container -->
-            <div id="billCombinedTableContainer" style="margin-bottom: 12px; width: 100%;">
-              <!-- Rendered dynamically -->
-            </div>
-            
-            <div class="invoice-divider"></div>
-            
-            <!-- 4. Unified Payment Summary -->
-            <div class="invoice-section-title" id="billSummaryTitle">SUMMARY</div>
-            <div class="horizontal-summary-grid">
-              <div class="summary-col">
-                <span class="summary-col-label">Total Bill</span>
-                <strong class="summary-col-val" id="bill-gross-total" style="color: #D32F2F;">Rs 0</strong>
-              </div>
-              <div class="summary-col">
-                <span class="summary-col-label">Total Paid</span>
-                <strong class="summary-col-val" id="bill-received" style="color: #D32F2F;">Rs 0</strong>
-              </div>
-              <div class="summary-col">
-                <span class="summary-col-label">Total Balance</span>
-                <strong class="summary-col-val highlight" id="bill-balance-total" style="color: #D32F2F;">Rs 0</strong>
-              </div>
-            </div>
-            
-            <!-- 5. QR Code Section -->
-            <div id="billQrCodeSection" class="invoice-qr-card-gold" style="margin-top: 12px;">
-              <div class="qr-title" id="billQrTitle">SCAN TO PAY COMPLETE PACKAGE</div>
-              <div class="invoice-qr-container">
-                <canvas id="upiQrCanvas"></canvas>
-              </div>
-              <div class="qr-merchant-id" id="billQrMerchantId">photosgiftsbynf@sbi</div>
-              <div class="qr-amount-text" id="billQrAmountRow">Total <span id="billQrAmountText">Rs 0</span></div>
-              <div class="qr-subtext" id="billQrSubtext" style="display: none; font-size: 0.65rem; color: #7A6F65; margin-top: 4px; font-weight: 600; text-align: center;">Single payment for all active projects</div>
-            </div>
-            
-            <div class="invoice-divider"></div>
-
-            <!-- 6. Footer -->
-            <div class="invoice-footer-section">
-              <p class="footer-thankyou" id="billFooterThankYou" style="font-size: 0.8rem; font-weight: bold; margin: 2px 0;">Thank you for your rest statement.</p>
-              <p class="footer-subinfo" id="billFooterSubInfo" style="font-size: 0.65rem; color: #7A6F65;">This is a combined statement for all active projects under rp.</p>
-            </div>
-            
-          </div>
-          </div>
-          
-          <!-- Action Buttons -->
-          <div style="display: flex; flex-direction: column; gap: 8px;">
-            <button class="btn btn-secondary" onclick="app.sendWhatsAppInvoice()" style="width: 100%; background-color: #25D366; color: white; border: none;">
-              <i data-lucide="message-square"></i> Send Invoice via WhatsApp
-            </button>
-            <button class="btn btn-secondary" onclick="app.openWhatsappModal(app.activeOrderId)" style="width: 100%; border-color: #25D366; color: #128C7E;">
-              <i data-lucide="bell"></i> Send Payment Reminder
-            </button>
-            <button class="btn btn-secondary" onclick="app.sendWhatsAppDriveLink()" style="width: 100%;" id="btnShareDriveLink">
-              <i data-lucide="share-2"></i> Share Drive Link via WhatsApp
-            </button>
-          </div>
 
         </div>
       </div>
@@ -701,10 +627,16 @@
         <h2>Invoices & Billing</h2>
       </div>
 
-      <div class="search-filter-container">
-        <div class="form-group" style="margin-bottom: 0; max-width: 300px;">
+      <div class="search-filter-container" style="display: flex; gap: 16px; flex-wrap: wrap;">
+        <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 200px; max-width: 300px;">
           <label for="invoicePhotographerSelect">Filter by Photographer</label>
           <select class="form-control" id="invoicePhotographerSelect" onchange="app.renderInvoiceList()">
+            <!-- Loaded dynamically -->
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 200px; max-width: 300px;">
+          <label for="invoiceClientSelect">Filter by Client</label>
+          <select class="form-control" id="invoiceClientSelect" onchange="app.renderInvoiceList()">
             <!-- Loaded dynamically -->
           </select>
         </div>
@@ -892,6 +824,13 @@
           </div>
         </div>
 
+        <div class="form-row">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="order-advance-payment">Advance (₹)</label>
+            <input type="number" class="form-control" id="order-advance-payment" placeholder="E.g., 1000">
+          </div>
+        </div>
+
         <div class="form-group" style="margin-bottom: 0;">
           <label for="order-notes">Notes / Album specifications</label>
           <textarea class="form-control" id="order-notes" placeholder="E.g., Bride Album (40 sheets), Groom Album (40 sheets)..."></textarea>
@@ -1032,6 +971,132 @@
       </div>
       <div class="modal-footer" style="padding: 10px 16px;">
         <button class="btn btn-secondary" onclick="app.closeWhatsappModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+    </div>
+  </div>
+
+  <!-- 7. Invoice Preview Modal -->
+  <div id="invoicePreviewModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 440px; padding: 20px;">
+      <div class="modal-header" style="margin-bottom: 12px; padding-bottom: 8px;">
+        <h3>Invoice Preview</h3>
+        <button class="btn btn-secondary btn-icon" style="width: 32px; height: 32px; border-radius: 8px;" onclick="app.closeInvoicePreviewModal()">
+          <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+        </button>
+      </div>
+      <div class="modal-body" style="padding: 0; max-height: 80vh; overflow-y: auto;">
+         
+          <!-- QR Settings Controls -->
+          <div style="background-color: var(--bg-color); padding: 16px; border-radius: 12px; border: 1px solid var(--card-border); margin-bottom: 16px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="billRequestAmount" style="font-size: 0.75rem; font-weight: 600;">Request/Collect Amount (₹)</label>
+              <input type="number" class="form-control" id="billRequestAmount" placeholder="Amount to collect..." oninput="app.updateRequestAmount(this.value)">
+              <p style="font-size: 0.65rem; color: var(--text-secondary); margin-top: 4px;">Edit for partial payments. All checkout links update instantly.</p>
+            </div>
+          </div>
+
+          <!-- The Physical Receipt Slip -->
+          <div id="invoice-container">
+            <div class="bill-slip" id="invoice-content">
+            
+              <!-- Golden Ribbon Seal Badge -->
+              <div class="invoice-seal-badge" id="bill-seal-badge">
+                <div class="seal-circle">
+                  <div class="seal-text" id="bill-type-badge">INVOICE</div>
+                </div>
+                <div class="seal-ribbon ribbon-left"></div>
+                <div class="seal-ribbon ribbon-right"></div>
+              </div>
+
+              <!-- 1. Centered Brand Header -->
+              <div class="invoice-brand-info-center">
+                <div class="monogram-logo">NF</div>
+                <h3 class="invoice-brand-name" id="bill-studio-name-top" style="font-size: 1.3rem; margin-top: 4px; color: #1A1A1A;">NF PHOTOS GIFTS</h3>
+                <p class="invoice-brand-sub" id="bill-studio-sub-top" style="font-size: 0.8rem; color: #7A6F65; font-weight: 600;">Wedding Album Specialists</p>
+              </div>
+              
+              <div class="invoice-divider"></div>
+              
+              <!-- 2. Redesigned Unified Meta Row -->
+              <div class="invoice-meta-row-combined" id="billMetaRowUnified" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; font-size: 0.8rem;">
+                <div style="flex: 1.2; text-align: left;">
+                  <span class="invoice-meta-label">STUDIO</span>
+                  <div class="invoice-meta-val-large" id="bill-combined-studio" style="color: var(--accent-gold-dark); font-size: 1.25rem;">rp</div>
+                  <div class="invoice-meta-subval" id="bill-combined-phone" style="font-size: 0.8rem; color: #7A6F65; font-weight: 600; margin-top: 2px;">7725889331</div>
+                </div>
+                <div style="flex: 1.2; text-align: center;">
+                  <span class="invoice-meta-label">INVOICE DATE</span>
+                  <div class="invoice-meta-val" id="bill-combined-date" style="font-weight: 700; font-size: 1.1rem; margin-top: 2px;">23Jun2026</div>
+                </div>
+                <div style="flex: 1; text-align: right;">
+                  <span class="invoice-meta-label" id="billProjectsLabel">ACTIVE PROJECTS</span>
+                  <div class="invoice-meta-val-large" id="bill-combined-projects-count" style="color: var(--accent-gold-dark); font-size: 1.8rem; line-height: 1; margin-top: 2px;">2</div>
+                </div>
+              </div>
+              
+              <div class="invoice-divider"></div>
+              
+              <!-- 3. Unified Statement Projects Table Container -->
+              <div id="billCombinedTableContainer" style="margin-bottom: 12px; width: 100%;">
+                <!-- Rendered dynamically -->
+              </div>
+              
+              <div class="invoice-divider"></div>
+              
+              <!-- 4. Unified Payment Summary -->
+              <div class="invoice-section-title" id="billSummaryTitle">SUMMARY</div>
+              <div class="horizontal-summary-grid">
+                <div class="summary-col">
+                  <span class="summary-col-label">Total Bill</span>
+                  <strong class="summary-col-val" id="bill-gross-total" style="color: #D32F2F;">Rs 0</strong>
+                </div>
+                <div class="summary-col">
+                  <span class="summary-col-label">Advance Received</span>
+                  <strong class="summary-col-val" id="bill-advance-paid" style="color: #E65100;">Rs 0</strong>
+                </div>
+                <div class="summary-col">
+                  <span class="summary-col-label" id="bill-balance-label">Total Balance</span>
+                  <strong class="summary-col-val highlight" id="bill-balance-total" style="color: #D32F2F;">Rs 0</strong>
+                </div>
+              </div>
+              
+              <!-- 5. QR Code Section -->
+              <div id="billQrCodeSection" class="invoice-qr-card-gold" style="margin-top: 12px;">
+                <div class="qr-title" id="billQrTitle">SCAN TO PAY COMPLETE PACKAGE</div>
+                <div class="invoice-qr-container">
+                  <canvas id="upiQrCanvas"></canvas>
+                </div>
+                <div class="qr-merchant-id" id="billQrMerchantId">photosgiftsbynf@sbi</div>
+                <div class="qr-amount-text" id="billQrAmountRow">Total <span id="billQrAmountText">Rs 0</span></div>
+                <div class="qr-subtext" id="billQrSubtext" style="display: none; font-size: 0.65rem; color: #7A6F65; margin-top: 4px; font-weight: 600; text-align: center;">Single payment for all active projects</div>
+              </div>
+              
+              <div class="invoice-divider"></div>
+  
+              <!-- 6. Footer -->
+              <div class="invoice-footer-section">
+                <p class="footer-thankyou" id="billFooterThankYou" style="font-size: 0.8rem; font-weight: bold; margin: 2px 0;">Thank you for your rest statement.</p>
+                <p class="footer-subinfo" id="billFooterSubInfo" style="font-size: 0.65rem; color: #7A6F65;">This is a combined statement for all active projects under rp.</p>
+              </div>
+              
+            </div>
+          </div>
+          
+          <!-- Action Buttons -->
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px;">
+            <button class="btn btn-secondary" onclick="app.sendWhatsAppInvoice('qr')" style="width: 100%; background-color: #D4AF37; color: white; border: none;">
+              <i data-lucide="qr-code"></i> Share QR & Pay Link (Quick)
+            </button>
+            <button class="btn btn-secondary" onclick="app.sendWhatsAppInvoiceToPhotographer()" style="width: 100%; background-color: #25D366; color: white; border: none;">
+              <i data-lucide="message-square"></i> Send Invoice to Photographer
+            </button>
+          </div>
+          
+
+
       </div>
     </div>
   </div>

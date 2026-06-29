@@ -643,7 +643,7 @@ input:checked + .slider:before {
 /* Order Details / Editor Layout */
 .details-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 1fr;
   gap: 24px;
   align-items: start;
 }
@@ -1993,4 +1993,19 @@ input:checked + .slider:before {
   background-color: var(--accent-gold-light);
   color: var(--accent-gold-dark);
   font-weight: 600;
+}
+
+/* Quick Action Dropdown Styling */
+.dropdown-menu a:hover {
+  background-color: var(--accent-gold-light) !important;
+  color: var(--accent-gold-dark) !important;
+}
+
+[data-theme="dark"] .dropdown-menu {
+  background-color: var(--bg-color) !important;
+}
+
+[data-theme="dark"] .dropdown-menu a:hover {
+  background-color: rgba(212, 175, 55, 0.15) !important;
+  color: var(--accent-gold) !important;
 }
