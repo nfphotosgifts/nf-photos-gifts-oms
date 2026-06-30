@@ -2273,14 +2273,16 @@ class WeddingAlbumOMS {
     if (!order) return;
 
     const fin = this.calculateOrderFinancials(order);
-    const includeQR = forceIncludeQR || (order.requestAmount > 0);
+    const checkboxEl = document.getElementById('billIncludeQrCheckbox');
+    const includeQR = checkboxEl ? checkboxEl.checked : (forceIncludeQR || (order.requestAmount > 0));
 
     const upiId = this.settings.upiId || 'photosgiftsbynf@sbi';
     const bizName = this.settings.businessName || 'NF PHOTOS GIFTS';
 
-    // Fill common elements
-    const studioNameEl = document.getElementById('bill-studio-name-top');
-    if (studioNameEl) studioNameEl.innerText = bizName;
+    // Fill brand names
+    document.querySelectorAll('.bill-studio-name-top').forEach(el => {
+      el.innerText = bizName;
+    });
 
     // Check if combined invoice
     const isCombined = order.id === 'combined_temp';
@@ -2296,9 +2298,12 @@ class WeddingAlbumOMS {
     const phone = photog ? (photog.mobile || '') : '';
     const studioName = order.photographerName || 'rp';
 
-    const studioValEl = document.getElementById('bill-combined-studio');
+    // Fill studio name
+    document.querySelectorAll('.bill-combined-studio').forEach(el => {
+      el.innerText = studioName;
+    });
+    
     const studioPhoneEl = document.getElementById('bill-combined-phone');
-    if (studioValEl) studioValEl.innerText = studioName;
     if (studioPhoneEl) studioPhoneEl.innerText = phone;
 
     // Format date as e.g. "23Jun2026"
@@ -2361,10 +2366,24 @@ class WeddingAlbumOMS {
         const subBadgeColor = oFin.balance <= 0 ? '#2E7D32' : (oFin.received > 0 ? '#E65100' : '#C62828');
         const subBadgeText = oFin.balance <= 0 ? 'PAID' : (oFin.received > 0 ? 'PART-PAID' : 'UNPAID');
 
+        let statusBadgeHtml = '';
+        if (isCombined) {
+          if (o.status === 'Google Drive Link Sent') {
+            statusBadgeHtml = `<span style="font-size: 0.62rem; font-weight: 700; background-color: rgba(79, 70, 229, 0.1); color: #4f46e5; padding: 2px 5px; border-radius: 4px; margin-left: 6px; border: 1px solid rgba(79, 70, 229, 0.25);">G Drive Sent</span>`;
+          } else if (o.status === 'Approved') {
+            statusBadgeHtml = `<span style="font-size: 0.62rem; font-weight: 700; background-color: rgba(46, 125, 50, 0.1); color: #2E7D32; padding: 2px 5px; border-radius: 4px; margin-left: 6px; border: 1px solid rgba(46, 125, 50, 0.25);">Approved</span>`;
+          } else if (o.status) {
+            statusBadgeHtml = `<span style="font-size: 0.62rem; font-weight: 700; background-color: rgba(120, 120, 120, 0.1); color: #555555; padding: 2px 5px; border-radius: 4px; margin-left: 6px; border: 1px solid rgba(120, 120, 120, 0.25);">${o.status}</span>`;
+          }
+        }
+
         tableHtml += `
           <tr>
             <td class="client-cell">
-              ${o.clientName}
+              <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                <span style="font-weight: 700;">${o.clientName}</span>
+                ${statusBadgeHtml}
+              </div>
               <div class="event-subtext">${subtext}</div>
             </td>
             <td align="center">
@@ -2397,23 +2416,59 @@ class WeddingAlbumOMS {
     if (grossTotalEl) grossTotalEl.innerText = currencyStr + fin.gross.toLocaleString('en-IN');
     if (balanceTotalEl) balanceTotalEl.innerText = currencyStr + fin.balance.toLocaleString('en-IN');
 
-    // Dynamic Advance Paid (Advance Received)
+    // Dynamic Paid Amount (Advance/Paid)
     const advancePaidEl = document.getElementById('bill-advance-paid');
-    let advanceSum = 0;
     if (advancePaidEl) {
-      advanceSum = isCombined 
-        ? (order.orders || []).reduce((sum, o) => {
-            const orig = this.orders.find(ord => ord.id === o.id);
-            return sum + (orig ? (Number(orig.advancePayment) || 0) : 0);
-          }, 0)
-        : (Number(order.advancePayment) || 0);
-      advancePaidEl.innerText = currencyStr + advanceSum.toLocaleString('en-IN');
+      advancePaidEl.innerText = currencyStr + fin.received.toLocaleString('en-IN');
     }
 
-    // Set dynamic label for balance based on whether advance payment exists
+    // Set dynamic label for balance based on whether any paid amount exists
     const balanceLabelEl = document.getElementById('bill-balance-label');
     if (balanceLabelEl) {
-      balanceLabelEl.innerText = advanceSum > 0 ? 'Remaining Balance' : 'Total Balance';
+      balanceLabelEl.innerText = fin.received > 0 ? 'Remaining Balance' : 'Total Balance';
+    }
+
+    // Single project status badge display on both layouts
+    const singleStatusContainer = document.getElementById('bill-single-status-badge-container');
+    const headerStatusBlock = document.getElementById('bill-combined-status-block');
+    const headerStatusVal = document.getElementById('bill-combined-status-val');
+
+    let statusHtml = '';
+    if (!isCombined) {
+      if (order.status === 'Google Drive Link Sent') {
+        statusHtml += `<span style="font-size: 0.65rem; padding: 2.5px 6px; border-radius: 4px; background: rgba(79, 70, 229, 0.1); color: #4f46e5; font-weight: 700; border: 1px solid rgba(79, 70, 229, 0.25);">G Drive Sent</span>`;
+      } else if (order.status === 'Approved') {
+        statusHtml += `<span style="font-size: 0.65rem; padding: 2.5px 6px; border-radius: 4px; background: rgba(46, 125, 50, 0.1); color: #2E7D32; font-weight: 700; border: 1px solid rgba(46, 125, 50, 0.25);">Approved</span>`;
+      } else if (order.status) {
+        statusHtml += `<span style="font-size: 0.65rem; padding: 2.5px 6px; border-radius: 4px; background: rgba(120, 120, 120, 0.1); color: #555555; font-weight: 700; border: 1px solid rgba(120, 120, 120, 0.25);">${order.status}</span>`;
+      }
+
+      // Add payment status tag
+      if (fin.balance <= 0) {
+        statusHtml += `<span style="font-size: 0.65rem; padding: 2.5px 6px; border-radius: 4px; background: rgba(46, 125, 50, 0.1); color: #2E7D32; font-weight: 700; border: 1px solid rgba(46, 125, 50, 0.25);">Fully Paid</span>`;
+      } else if (fin.received > 0) {
+        statusHtml += `<span style="font-size: 0.65rem; padding: 2.5px 6px; border-radius: 4px; background: rgba(230, 81, 0, 0.1); color: #E65100; font-weight: 700; border: 1px solid rgba(230, 81, 0, 0.25);">Part-Paid</span>`;
+      } else {
+        statusHtml += `<span style="font-size: 0.65rem; padding: 2.5px 6px; border-radius: 4px; background: rgba(198, 40, 40, 0.1); color: #C62828; font-weight: 700; border: 1px solid rgba(198, 40, 40, 0.25);">Unpaid</span>`;
+      }
+    }
+
+    if (singleStatusContainer) {
+      if (!isCombined) {
+        singleStatusContainer.style.display = 'flex';
+        singleStatusContainer.innerHTML = statusHtml;
+      } else {
+        singleStatusContainer.style.display = 'none';
+      }
+    }
+
+    if (headerStatusBlock && headerStatusVal) {
+      if (!isCombined) {
+        headerStatusBlock.style.display = 'block';
+        headerStatusVal.innerHTML = statusHtml;
+      } else {
+        headerStatusBlock.style.display = 'none';
+      }
     }
 
     // QR generation block
@@ -2425,6 +2480,11 @@ class WeddingAlbumOMS {
         const reqAmount = order.requestAmount;
         const upiLink = this.getUpiLink(order, reqAmount);
         
+        const qrAmountBigEl = document.getElementById('billQrAmountBig');
+        if (qrAmountBigEl) {
+          qrAmountBigEl.innerText = '₹' + Number(reqAmount).toLocaleString('en-IN');
+        }
+
         const qrAmountTextEl = document.getElementById('billQrAmountText');
         if (qrAmountTextEl) {
           qrAmountTextEl.innerText = currencyStr + Number(reqAmount).toLocaleString('en-IN');
@@ -2438,28 +2498,33 @@ class WeddingAlbumOMS {
         const footerUpiEl = document.getElementById('footer-upi-id');
         if (footerUpiEl) footerUpiEl.innerText = upiId;
 
-        const qrMerchantEl = document.getElementById('billQrMerchantId');
-        if (qrMerchantEl) qrMerchantEl.innerText = upiId;
+        document.querySelectorAll('.billQrMerchantIdClass').forEach(el => {
+          el.innerText = upiId;
+        });
 
         const qrSubtextEl = document.getElementById('billQrSubtext');
         if (qrSubtextEl) {
           qrSubtextEl.style.display = isCombined ? 'block' : 'none';
         }
 
-        // Generate canvas QR code
-        const canvasEl = document.getElementById('upiQrCanvas');
-        if (canvasEl) {
+        // Generate canvas QR code for all instances
+        document.querySelectorAll('.upiQrCanvasClass').forEach(canvasEl => {
           new QRious({
             element: canvasEl,
             value: upiLink,
-            size: 140,
+            size: 170,
             level: 'H'
           });
-        }
+        });
       } else {
         qrSection.style.display = 'none';
       }
     }
+
+    // Toggle QR visibility wrapper inside Payment Card
+    document.querySelectorAll('.bill-qr-only-wrapper').forEach(el => {
+      el.style.display = includeQR ? 'flex' : 'none';
+    });
 
     // Footer Text
     const footerThankYouEl = document.getElementById('billFooterThankYou');
@@ -2542,12 +2607,38 @@ class WeddingAlbumOMS {
       }
     }
 
+    // Reset style select to 'qr' by default when opening
+    const styleSelect = document.getElementById('billPreviewStyle');
+    if (styleSelect) {
+      styleSelect.value = 'qr';
+    }
+    this.toggleInvoicePreviewStyle('qr');
+
     this.renderBillSlip();
     document.getElementById('invoicePreviewModal').classList.add('active');
   }
 
   closeInvoicePreviewModal() {
     document.getElementById('invoicePreviewModal').classList.remove('active');
+  }
+
+  toggleInvoicePreviewStyle(style) {
+    const qrCard = document.getElementById('invoice-qr-card-view');
+    const fullSlip = document.getElementById('invoice-full-slip-view');
+    if (qrCard && fullSlip) {
+      if (style === 'qr') {
+        qrCard.style.display = 'flex';
+        fullSlip.style.display = 'none';
+      } else {
+        qrCard.style.display = 'none';
+        fullSlip.style.display = 'block';
+      }
+    }
+  }
+
+  toggleInvoiceQrDisplay(checked) {
+    const previewStyle = document.getElementById('billPreviewStyle')?.value || 'qr';
+    this.renderBillSlip(previewStyle === 'qr');
   }
 
   // 9. Payment recording modal
@@ -3581,6 +3672,26 @@ class WeddingAlbumOMS {
     }, 1500);
   }
 
+  generateWhatsAppMessage(order, fin, reqAmount, upiLink, mode, bizName) {
+    const isWeb = (window.location.protocol === 'http:' || window.location.protocol === 'https:');
+    const webPayLink = isWeb
+      ? `${window.location.origin}${window.location.pathname}?pay=${encodeURIComponent(upiLink)}`
+      : upiLink;
+
+    let message = `✨ ${bizName} ✨\n`;
+    message += `Total Bill: Rs ${fin.gross.toLocaleString('en-IN')}\n`;
+    message += `Advance Received: Rs ${fin.received.toLocaleString('en-IN')}\n`;
+    message += `Remaining Balance: Rs ${fin.balance.toLocaleString('en-IN')}\n`;
+    if (reqAmount !== fin.balance) {
+      message += `Request Amount: Rs ${reqAmount.toLocaleString('en-IN')}\n`;
+    }
+    message += `Tap and Pay here: ${webPayLink}`;
+    if (mode === 'qr') {
+      message += `\n(Scan QR in bill to pay)`;
+    }
+    return message;
+  }
+
   async sendWhatsAppInvoice(mode = 'all') {
     const order = this.orders.find(o => o.id === this.activeOrderId);
     if (!order) return;
@@ -3601,12 +3712,7 @@ class WeddingAlbumOMS {
     if (mode === 'link') {
       const reqAmount = (order.requestAmount > 0) ? order.requestAmount : fin.balance;
       const upiLink = this.getUpiLink(order, reqAmount);
-      let message = `✨ ${bizName} ✨\n`;
-      if (reqAmount !== fin.balance) {
-        message += `Request Amount: Rs ${reqAmount.toLocaleString('en-IN')}\n`;
-      }
-      message += `Total Balance: Rs ${fin.balance.toLocaleString('en-IN')}\n`;
-      message += `Tap and Pay here: ${upiLink}`;
+      const message = this.generateWhatsAppMessage(order, fin, reqAmount, upiLink, 'link', bizName);
       
       try {
         await navigator.clipboard.writeText(message);
@@ -3676,15 +3782,7 @@ class WeddingAlbumOMS {
 
       const reqAmount = (order.requestAmount > 0) ? order.requestAmount : fin.balance;
       const upiLink = this.getUpiLink(order, reqAmount);
-      let message = `✨ ${bizName} ✨\n`;
-      if (reqAmount !== fin.balance) {
-        message += `Request Amount: Rs ${reqAmount.toLocaleString('en-IN')}\n`;
-      }
-      message += `Total Balance: Rs ${fin.balance.toLocaleString('en-IN')}\n`;
-      message += `Tap and Pay here: ${upiLink}`;
-      if (mode === 'qr') {
-        message += `\n(Scan QR in bill to pay)`;
-      }
+      const message = this.generateWhatsAppMessage(order, fin, reqAmount, upiLink, mode, bizName);
 
       // Convert base64 data URL to Blob
       const response = await fetch(link.href);
@@ -3726,15 +3824,7 @@ class WeddingAlbumOMS {
 
       const reqAmount = (order.requestAmount > 0) ? order.requestAmount : fin.balance;
       const upiLink = this.getUpiLink(order, reqAmount);
-      let message = `✨ ${bizName} ✨\n`;
-      if (reqAmount !== fin.balance) {
-        message += `Request Amount: Rs ${reqAmount.toLocaleString('en-IN')}\n`;
-      }
-      message += `Total Balance: Rs ${fin.balance.toLocaleString('en-IN')}\n`;
-      message += `Tap and Pay here: ${upiLink}`;
-      if (mode === 'qr') {
-        message += `\n(Scan QR in bill to pay)`;
-      }
+      const message = this.generateWhatsAppMessage(order, fin, reqAmount, upiLink, mode, bizName);
       window.open(this.generateWhatsAppURL(mobile, message), '_blank');
     }
   }
@@ -4012,6 +4102,7 @@ class WeddingAlbumOMS {
 
 // Instantiate and start app global context
 const app = new WeddingAlbumOMS();
+window.app = app;
 window.onload = () => {
   app.init();
 };

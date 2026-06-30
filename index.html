@@ -3,6 +3,124 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <script>
+    // Quick redirect for UPI payment links shared on WhatsApp
+    const urlParams = new URLSearchParams(window.location.search);
+    const payLink = urlParams.get('pay');
+    if (payLink) {
+      const upiUrl = decodeURIComponent(payLink);
+      document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Redirecting to Payment...</title>
+          <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+          <style>
+            body {
+              margin: 0;
+              padding: 24px;
+              background-color: #FAF8F2;
+              color: #2B2520;
+              font-family: 'Outfit', sans-serif;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              min-height: 100vh;
+              text-align: center;
+              box-sizing: border-box;
+            }
+            .card {
+              background: white;
+              padding: 32px 24px;
+              border-radius: 24px;
+              border: 1.5px solid rgba(212, 175, 55, 0.2);
+              box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+              max-width: 360px;
+              width: 100%;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              gap: 20px;
+            }
+            .logo {
+              width: 50px;
+              height: 50px;
+              border-radius: 50%;
+              background: #D4AF37;
+              color: white;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-weight: 800;
+              font-size: 1.3rem;
+              box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+            }
+            h2 {
+              margin: 0;
+              font-size: 1.4rem;
+              font-weight: 800;
+              color: #1A1A1A;
+            }
+            p {
+              margin: 0;
+              font-size: 0.85rem;
+              color: #7A6F65;
+              line-height: 1.5;
+            }
+            .spinner {
+              width: 32px;
+              height: 32px;
+              border: 3px solid rgba(212, 175, 55, 0.1);
+              border-radius: 50%;
+              border-top-color: #D4AF37;
+              animation: spin 1s linear infinite;
+              margin: 8px 0;
+            }
+            .pay-btn {
+              background-color: #D4AF37;
+              color: white;
+              border: none;
+              padding: 12px 24px;
+              border-radius: 12px;
+              font-size: 0.95rem;
+              font-weight: 700;
+              text-decoration: none;
+              box-shadow: 0 4px 12px rgba(212, 175, 55, 0.25);
+              transition: all 0.2s ease;
+              width: 100%;
+              box-sizing: border-box;
+            }
+            .pay-btn:active {
+              transform: scale(0.98);
+            }
+            @keyframes spin {
+              to { transform: rotate(360deg); }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <div class="logo">NF</div>
+            <h2>NF OMS Payments</h2>
+            <div class="spinner"></div>
+            <p>Redirecting you to Google Pay, PhonePe, Paytm, or other UPI apps to pay safely...</p>
+            <a href="${upiUrl}" class="pay-btn">Pay Now (Tap if not redirected)</a>
+            <p style="font-size: 0.72rem; color: #9A8F85;">If it doesn't open automatically, tap the button above.</p>
+          </div>
+          <script>
+            setTimeout(() => {
+              window.location.href = "${upiUrl}";
+            }, 300);
+          <\/script>
+        </body>
+        </html>
+      `);
+      window.stop();
+    }
+  </script>
   <title>NF OMS - Wedding Album OMS</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="manifest" href="manifest.json">
@@ -17,6 +135,7 @@
   
   <!-- html2canvas for converting invoice to PNG image -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  
   
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@0.344.0/dist/umd/lucide.min.js"></script>
@@ -188,12 +307,32 @@
         </div>
       </div>
 
+      <!-- Projects Heading & Status Chips -->
+      <div style="margin-top: 32px; margin-bottom: 8px;">
+        <h2 style="font-size: 1.4rem; font-weight: 800; color: var(--text-primary); margin: 0 0 12px 0;">Projects</h2>
+      </div>
+      
+      <!-- Status chips moved up next to Projects heading -->
+      <div class="filter-chips" id="statusChipsContainer" style="margin-bottom: 16px;">
+        <div class="chip active" onclick="app.setStatusFilter('all', this)">All Statuses</div>
+        <div class="chip" onclick="app.setStatusFilter('Order Received', this)">Order Received</div>
+        <div class="chip" onclick="app.setStatusFilter('Designing', this)">Designing</div>
+        <div class="chip" onclick="app.setStatusFilter('PDF Sent', this)">PDF Sent</div>
+        <div class="chip" onclick="app.setStatusFilter('Changes Requested', this)">Changes Requested</div>
+        <div class="chip" onclick="app.setStatusFilter('Approved', this)">Approved</div>
+        <div class="chip" onclick="app.setStatusFilter('Google Drive Link Sent', this)">Drive Sent</div>
+        <div class="chip" onclick="app.setStatusFilter('Delivered', this)">Delivered</div>
+        <div class="chip" onclick="app.setStatusFilter('Hold', this)">Hold</div>
+        <div class="chip" onclick="app.setStatusFilter('Cancelled', this)">Cancelled</div>
+        <div class="chip" onclick="app.setStatusFilter('Archived', this)">Archived</div>
+      </div>
+
       <!-- Search & Filters -->
-      <div class="search-filter-container" id="active-section" style="margin-top: 24px;">
+      <div class="search-filter-container" id="active-section" style="margin-top: 0; margin-bottom: 16px;">
         <div class="search-box" style="display: none;">
           <input type="text" id="dashboardSearch" placeholder="Search..." oninput="app.filterOrders()">
         </div>
-        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <div style="display: flex; gap: 12px; flex-wrap: wrap; width: 100%;">
           <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
             <select class="form-control" id="filterPaymentStatus" onchange="app.filterOrders()">
               <option value="all">All Payment Statuses</option>
@@ -206,21 +345,6 @@
               <option value="all">All Studios & Clients</option>
             </select>
           </div>
-        </div>
-        
-        <!-- Status chips -->
-        <div class="filter-chips" id="statusChipsContainer">
-          <div class="chip active" onclick="app.setStatusFilter('all', this)">All Statuses</div>
-          <div class="chip" onclick="app.setStatusFilter('Order Received', this)">Order Received</div>
-          <div class="chip" onclick="app.setStatusFilter('Designing', this)">Designing</div>
-          <div class="chip" onclick="app.setStatusFilter('PDF Sent', this)">PDF Sent</div>
-          <div class="chip" onclick="app.setStatusFilter('Changes Requested', this)">Changes Requested</div>
-          <div class="chip" onclick="app.setStatusFilter('Approved', this)">Approved</div>
-          <div class="chip" onclick="app.setStatusFilter('Google Drive Link Sent', this)">Drive Sent</div>
-          <div class="chip" onclick="app.setStatusFilter('Delivered', this)">Delivered</div>
-          <div class="chip" onclick="app.setStatusFilter('Hold', this)">Hold</div>
-          <div class="chip" onclick="app.setStatusFilter('Cancelled', this)">Cancelled</div>
-          <div class="chip" onclick="app.setStatusFilter('Archived', this)">Archived</div>
         </div>
       </div>
 
@@ -255,7 +379,7 @@
           
           <!-- Metadata Card -->
           <div class="order-detail-header-card">
-            <div class="editor-title-row">
+            <div class="editor-title-row" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap;">
               <div>
                 <span class="order-id" id="detail-invoice-number">NF-XXX</span>
                 <h2 class="editor-client-name" id="detail-client-name-title">Client Name</h2>
@@ -267,29 +391,29 @@
                   <span>Photographer: <strong id="detail-photographer-name" style="color: var(--text-primary);">Studio</strong></span>
                 </div>
               </div>
-              <div id="detail-payment-indicator">
-                <!-- Smart payment indicator rendered dynamically -->
-              </div>
-            </div>
-            
-            <div class="form-row">
-              <div class="form-group">
-                <label for="detail-status">Update Status</label>
-                <select class="form-control" id="detail-status" onchange="app.updateOrderStatus(this.value)">
-                  <option value="Order Received">Order Received</option>
-                  <option value="Designing">Designing</option>
-                  <option value="PDF Sent">PDF Sent</option>
-                  <option value="Changes Requested">Changes Requested</option>
-                  <option value="Approved">Approved</option>
-                  <option value="Google Drive Link Sent">G Drive Link Sent</option>
-                  <option value="Delivered">Delivered</option>
-                  <option value="Hold">Hold</option>
-                  <option value="Cancelled">Cancelled</option>
-                  <option value="Archived">Archived</option>
-                  <option value="Other">Other (Custom Editable)</option>
-                </select>
-                <!-- For Custom Editable Status -->
-                <input type="text" class="form-control" id="detail-custom-status" placeholder="Enter custom status..." style="display: none; margin-top: 8px;" onchange="app.updateOrderCustomStatus(this.value)">
+              <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px; min-width: 180px;">
+                <div id="detail-payment-indicator">
+                  <!-- Smart payment indicator rendered dynamically -->
+                </div>
+                <!-- Order Status dropdown at the top right -->
+                <div style="width: 100%; text-align: left;">
+                  <label for="detail-status" style="font-size: 0.65rem; text-transform: uppercase; font-weight: 700; color: var(--text-secondary); margin-bottom: 2px; display: block; letter-spacing: 0.5px;">Order Status</label>
+                  <select class="form-control" id="detail-status" onchange="app.updateOrderStatus(this.value)" style="height: 34px; padding: 4px 10px; font-size: 0.82rem; font-weight: 700; border-radius: 8px; background-color: var(--bg-color); border: 1.5px solid var(--card-border); color: var(--text-primary);">
+                    <option value="Order Received">Order Received</option>
+                    <option value="Designing">Designing</option>
+                    <option value="PDF Sent">PDF Sent</option>
+                    <option value="Changes Requested">Changes Requested</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Google Drive Link Sent">G Drive Link Sent</option>
+                    <option value="Delivered">Delivered</option>
+                    <option value="Hold">Hold</option>
+                    <option value="Cancelled">Cancelled</option>
+                    <option value="Archived">Archived</option>
+                    <option value="Other">Other (Custom Editable)</option>
+                  </select>
+                  <!-- For Custom Editable Status -->
+                  <input type="text" class="form-control" id="detail-custom-status" placeholder="Enter custom status..." style="display: none; margin-top: 6px; height: 34px; font-size: 0.82rem;" onchange="app.updateOrderCustomStatus(this.value)">
+                </div>
               </div>
             </div>
 
@@ -990,18 +1114,67 @@
       <div class="modal-body" style="padding: 0; max-height: 80vh; overflow-y: auto;">
          
           <!-- QR Settings Controls -->
-          <div style="background-color: var(--bg-color); padding: 16px; border-radius: 12px; border: 1px solid var(--card-border); margin-bottom: 16px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
             <div class="form-group" style="margin-bottom: 0;">
-              <label for="billRequestAmount" style="font-size: 0.75rem; font-weight: 600;">Request/Collect Amount (₹)</label>
+              <label for="billRequestAmount" style="font-size: 0.75rem; font-weight: 600;">Collect Amount (₹)</label>
               <input type="number" class="form-control" id="billRequestAmount" placeholder="Amount to collect..." oninput="app.updateRequestAmount(this.value)">
-              <p style="font-size: 0.65rem; color: var(--text-secondary); margin-top: 4px;">Edit for partial payments. All checkout links update instantly.</p>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="billPreviewStyle" style="font-size: 0.75rem; font-weight: 600;">Sharing Style</label>
+              <select class="form-control" id="billPreviewStyle" onchange="app.toggleInvoicePreviewStyle(this.value)">
+                <option value="qr">Payment QR Card</option>
+                <option value="invoice">Full Invoice Slip</option>
+              </select>
             </div>
           </div>
 
+          <!-- Toggle QR Code option -->
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; background: var(--bg-color); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--card-border);">
+            <label class="switch" style="transform: scale(0.85); margin-bottom: 0;">
+              <input type="checkbox" id="billIncludeQrCheckbox" checked onchange="app.toggleInvoiceQrDisplay(this.checked)">
+              <span class="slider"></span>
+            </label>
+            <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">Include Payment QR Code</span>
+          </div>
+
           <!-- The Physical Receipt Slip -->
-          <div id="invoice-container">
-            <div class="bill-slip" id="invoice-content">
+          <div id="invoice-container" style="background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.06); overflow: hidden; max-width: 400px; margin: 0 auto; border: 1.5px solid rgba(212, 175, 55, 0.2);">
             
+            <!-- STYLE 1: Sleek Payment QR Card -->
+            <div id="invoice-qr-card-view" style="padding: 28px 24px; display: flex; flex-direction: column; align-items: center; gap: 20px; background: linear-gradient(135deg, #FFFDF9 0%, #FFF9EE 100%); text-align: center; width: 100%;">
+              <!-- Brand Header -->
+              <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+                <div style="width: 42px; height: 42px; border-radius: 50%; background: #D4AF37; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.2rem; box-shadow: 0 4px 10px rgba(212, 175, 55, 0.3);">NF</div>
+                <h3 class="bill-studio-name-top" style="font-size: 1.25rem; margin: 6px 0 0 0; color: #1A1A1A; font-weight: 800; letter-spacing: 0.5px;">NF OMS</h3>
+                <p class="bill-combined-studio" style="font-size: 0.75rem; color: #7A6F65; margin: 2px 0 0 0; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px;">Studio Payment Request</p>
+                <div id="bill-single-status-badge-container" style="margin-top: 6px; display: none; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap;"></div>
+              </div>
+
+              <div style="width: 80%; height: 1px; background: rgba(212, 175, 55, 0.15); margin: 4px 0;"></div>
+
+              <!-- Amount Section -->
+              <div>
+                <span style="font-size: 0.75rem; color: #7A6F65; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Amount Requested</span>
+                <div style="font-size: 2.6rem; font-weight: 900; color: #D4AF37; margin: 4px 0; letter-spacing: -0.5px;" id="billQrAmountBig">₹0</div>
+              </div>
+
+              <!-- QR Code Frame & Scan info wrapped in dynamic visibility container -->
+              <div class="bill-qr-only-wrapper" style="display: flex; flex-direction: column; align-items: center; gap: 20px; width: 100%;">
+                <!-- QR Code Frame -->
+                <div class="billQrCodeSectionFrame" style="background: white; padding: 14px; border-radius: 20px; border: 1.5px solid rgba(212, 175, 55, 0.25); box-shadow: 0 6px 20px rgba(0,0,0,0.03); display: flex; justify-content: center; align-items: center;">
+                  <canvas class="upiQrCanvasClass" style="width: 170px; height: 170px;"></canvas>
+                </div>
+
+                <!-- UPI & Scan Info -->
+                <div style="display: flex; flex-direction: column; gap: 4px; align-items: center;">
+                  <span class="billQrMerchantIdClass" style="font-size: 0.85rem; font-weight: 800; color: #1A1A1A;">photosgiftsbynf@sbi</span>
+                  <p style="font-size: 0.68rem; color: #7A6F65; margin: 0; font-weight: 600;">Scan with any UPI App (GPay, PhonePe, Paytm, BHIM)</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- STYLE 2: Full Invoice Slip -->
+            <div id="invoice-full-slip-view" class="bill-slip" id="invoice-content" style="display: none; border: none; box-shadow: none; border-radius: 0; width: 100%; height: auto; padding: 20px;">
               <!-- Golden Ribbon Seal Badge -->
               <div class="invoice-seal-badge" id="bill-seal-badge">
                 <div class="seal-circle">
@@ -1014,7 +1187,7 @@
               <!-- 1. Centered Brand Header -->
               <div class="invoice-brand-info-center">
                 <div class="monogram-logo">NF</div>
-                <h3 class="invoice-brand-name" id="bill-studio-name-top" style="font-size: 1.3rem; margin-top: 4px; color: #1A1A1A;">NF PHOTOS GIFTS</h3>
+                <h3 class="invoice-brand-name bill-studio-name-top" style="font-size: 1.3rem; margin-top: 4px; color: #1A1A1A;">NF OMS</h3>
                 <p class="invoice-brand-sub" id="bill-studio-sub-top" style="font-size: 0.8rem; color: #7A6F65; font-weight: 600;">Wedding Album Specialists</p>
               </div>
               
@@ -1024,12 +1197,16 @@
               <div class="invoice-meta-row-combined" id="billMetaRowUnified" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; font-size: 0.8rem;">
                 <div style="flex: 1.2; text-align: left;">
                   <span class="invoice-meta-label">STUDIO</span>
-                  <div class="invoice-meta-val-large" id="bill-combined-studio" style="color: var(--accent-gold-dark); font-size: 1.25rem;">rp</div>
+                  <div class="invoice-meta-val-large bill-combined-studio" style="color: var(--accent-gold-dark); font-size: 1.25rem;">rp</div>
                   <div class="invoice-meta-subval" id="bill-combined-phone" style="font-size: 0.8rem; color: #7A6F65; font-weight: 600; margin-top: 2px;">7725889331</div>
                 </div>
                 <div style="flex: 1.2; text-align: center;">
                   <span class="invoice-meta-label">INVOICE DATE</span>
                   <div class="invoice-meta-val" id="bill-combined-date" style="font-weight: 700; font-size: 1.1rem; margin-top: 2px;">23Jun2026</div>
+                </div>
+                <div style="flex: 1.2; text-align: center;" id="bill-combined-status-block">
+                  <span class="invoice-meta-label">STATUS</span>
+                  <div id="bill-combined-status-val" style="margin-top: 4px; display: flex; justify-content: center; gap: 4px; flex-wrap: wrap;"></div>
                 </div>
                 <div style="flex: 1; text-align: right;">
                   <span class="invoice-meta-label" id="billProjectsLabel">ACTIVE PROJECTS</span>
@@ -1047,14 +1224,14 @@
               <div class="invoice-divider"></div>
               
               <!-- 4. Unified Payment Summary -->
-              <div class="invoice-section-title" id="billSummaryTitle">SUMMARY</div>
+              <div class="invoice-section-title" id="billSummaryTitle">PAYMENT SUMMARY</div>
               <div class="horizontal-summary-grid">
                 <div class="summary-col">
                   <span class="summary-col-label">Total Bill</span>
                   <strong class="summary-col-val" id="bill-gross-total" style="color: #D32F2F;">Rs 0</strong>
                 </div>
                 <div class="summary-col">
-                  <span class="summary-col-label">Advance Received</span>
+                  <span class="summary-col-label">Paid Amount</span>
                   <strong class="summary-col-val" id="bill-advance-paid" style="color: #E65100;">Rs 0</strong>
                 </div>
                 <div class="summary-col">
@@ -1067,9 +1244,9 @@
               <div id="billQrCodeSection" class="invoice-qr-card-gold" style="margin-top: 12px;">
                 <div class="qr-title" id="billQrTitle">SCAN TO PAY COMPLETE PACKAGE</div>
                 <div class="invoice-qr-container">
-                  <canvas id="upiQrCanvas"></canvas>
+                  <canvas id="upiQrCanvas" class="upiQrCanvasClass"></canvas>
                 </div>
-                <div class="qr-merchant-id" id="billQrMerchantId">photosgiftsbynf@sbi</div>
+                <div class="qr-merchant-id billQrMerchantIdClass">photosgiftsbynf@sbi</div>
                 <div class="qr-amount-text" id="billQrAmountRow">Total <span id="billQrAmountText">Rs 0</span></div>
                 <div class="qr-subtext" id="billQrSubtext" style="display: none; font-size: 0.65rem; color: #7A6F65; margin-top: 4px; font-weight: 600; text-align: center;">Single payment for all active projects</div>
               </div>
@@ -1081,17 +1258,19 @@
                 <p class="footer-thankyou" id="billFooterThankYou" style="font-size: 0.8rem; font-weight: bold; margin: 2px 0;">Thank you for your rest statement.</p>
                 <p class="footer-subinfo" id="billFooterSubInfo" style="font-size: 0.65rem; color: #7A6F65;">This is a combined statement for all active projects under rp.</p>
               </div>
-              
             </div>
           </div>
           
           <!-- Action Buttons -->
           <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px;">
             <button class="btn btn-secondary" onclick="app.sendWhatsAppInvoice('qr')" style="width: 100%; background-color: #D4AF37; color: white; border: none;">
-              <i data-lucide="qr-code"></i> Share QR & Pay Link (Quick)
+              <i data-lucide="share"></i> Share Image & Pay Link
+            </button>
+            <button class="btn btn-secondary" onclick="app.sendWhatsAppInvoice('link')" style="width: 100%; border-color: #25D366; color: #128C7E; background: transparent;">
+              <i data-lucide="link"></i> Share Pay Link Only (Text)
             </button>
             <button class="btn btn-secondary" onclick="app.sendWhatsAppInvoiceToPhotographer()" style="width: 100%; background-color: #25D366; color: white; border: none;">
-              <i data-lucide="message-square"></i> Send Invoice to Photographer
+              <i data-lucide="message-square"></i> Send to Photographer
             </button>
           </div>
           
